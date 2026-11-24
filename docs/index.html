@@ -1,0 +1,4176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="description" content="Notes & Tasks web and Windows companion with Google Drive cloud sync">
+  <title>Notes & Tasks Web App</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <style>
+    :root {
+      --bg-main: #121214;
+      --bg-surface: #1c1c1f;
+      --bg-surface-elevated: #27272a;
+      --bg-card: #1c1c1f;
+      --border-color: #2e2e33;
+      --text-main: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --primary: #71717a;
+      --primary-hover: #52525b;
+      --primary-light: rgba(161, 161, 170, 0.14);
+      --success: #71717a;
+      --warning: #a1a1aa;
+      --danger: #a1a1aa;
+      --star-color: #d4d4d8;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Layout */
+    .app-layout {
+      display: flex;
+      flex: 1;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background-color: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform 0.3s ease;
+      z-index: 40;
+    }
+
+    .brand-header {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #fff;
+    }
+
+    .brand-badge {
+      font-size: 0.65rem;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .nav-sections {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 12px 4px;
+      margin-top: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-item-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-icon {
+      font-size: 1.1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-counter {
+      font-size: 0.75rem;
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .nav-item.active .nav-counter {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .perma-folder-badge {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .folder-completed-dot { background-color: #10b981; }
+    .folder-links-dot { background-color: #0284c7; }
+
+    /* Main Container */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: var(--bg-main);
+    }
+
+    /* Top Bar */
+    .topbar {
+      height: 68px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    .search-container {
+      flex: 1;
+      max-width: 550px;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 16px 10px 42px;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-success {
+      background: #059669;
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #047857;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .btn-icon {
+      padding: 8px;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .btn-icon:hover {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    /* Sync Status pill */
+    .sync-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: var(--bg-surface-elevated);
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sync-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .sync-indicator.online { background: var(--success); }
+    .sync-indicator.syncing {
+      background: var(--warning);
+      animation: pulse 1s infinite alternate;
+    }
+    .sync-indicator.error { background: var(--danger); }
+
+    @keyframes pulse {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+
+    /* Content Area */
+    .content-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .header-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .view-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-chip:hover {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .filter-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* Grid for Notes & Tasks */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    /* Note Card */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: #475569;
+    }
+
+    .card.color-0 { border-left: 4px solid #94a3b8; }
+    .card.color-1 { border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.04); }
+    .card.color-2 { border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.04); }
+    .card.color-3 { border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.04); }
+    .card.color-4 { border-left: 4px solid #a855f7; background: rgba(168, 85, 247, 0.04); }
+    .card.color-5 { border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.04); }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .card-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-content-preview {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-meta {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag-badge {
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+    }
+
+    .folder-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Task Specifics */
+    .task-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .custom-checkbox {
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: all 0.2s;
+    }
+
+    .custom-checkbox:checked {
+      background-color: var(--success);
+      border-color: var(--success);
+    }
+
+    .custom-checkbox:checked::after {
+      content: "✓";
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .task-title.completed {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .priority-badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .priority-high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .priority-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .priority-low { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+
+    .subtasks-box {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .subtask-item.completed span {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn 0.2s ease-out;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .form-input, .form-textarea, .form-select {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 10px 14px;
+      font-size: 0.92rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: var(--primary);
+    }
+
+    .form-textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .color-picker-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s;
+    }
+
+    .color-swatch:hover { transform: scale(1.1); }
+    .color-swatch.active { border-color: #fff; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .empty-title {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    /* Windows PWA Install banner */
+    .install-banner {
+      background: linear-gradient(90deg, #1e3a8a, #2563eb);
+      color: white;
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-surface-elevated);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      border-left: 4px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 200;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Subfolder & Action buttons styling */
+    .folder-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .folder-btn-action {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 3px 5px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .folder-btn-action:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .subfolder-item {
+      padding-left: 28px !important;
+      font-size: 0.85rem !important;
+      border-left: 2px solid var(--border-color);
+      margin-left: 14px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+    }
+
+    /* Rich Editor Formatting Toolbar */
+    .editor-toolbar {
+      display: flex;
+      gap: 6px;
+      padding: 6px 8px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      flex-wrap: wrap;
+    }
+
+    .tool-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .editor-with-toolbar {
+      border-top-left-radius: 0 !important;
+      border-top-right-radius: 0 !important;
+    }
+
+    /* Quick Tag chips in editor */
+    .quick-tags-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .quick-tag-chip {
+      font-size: 0.72rem;
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: all 0.15s;
+    }
+
+    .quick-tag-chip:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    /* Tag badge colors & tags chips bar */
+    .tags-bar-container {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 6px 0 10px 0;
+      scrollbar-width: thin;
+      align-items: center;
+    }
+
+    .tag-chip-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tag-chip-filter:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .tag-chip-filter.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+
+    .tag-chip-filter .tag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .sidebar-tag-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .sidebar-tag-item:hover {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .sidebar-tag-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary-light);
+      font-weight: 600;
+    }
+
+    /* Card preview images (e.g. YouTube shorts, Insta, Facebook, Pinterest thumbnails) */
+    .card-preview-image {
+      width: 100%;
+      max-height: 190px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      margin: 8px 0;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      display: block;
+    }
+
+    .link-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    /* Live Link Metadata Preview Box in Modal */
+    .link-meta-preview {
+      display: none;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+    }
+
+    .link-meta-preview.active {
+      display: block;
+    }
+
+    .link-meta-thumb {
+      width: 100%;
+      max-height: 140px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .folder-type-badge {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .folder-type-notes {
+      background: rgba(147, 51, 234, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(147, 51, 234, 0.35);
+    }
+    .folder-type-tasks {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .folder-type-both {
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+    }
+
+    /* Section Separator Headers for Notes / Tasks folder separation */
+    .section-divider-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 4px 6px 4px;
+      margin-top: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-divider-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 800px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .mobile-menu-btn {
+        display: block;
+      }
+      .topbar {
+        padding: 0 16px;
+      }
+      .content-viewport {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="appSidebar">
+    <div class="brand-header">
+      <img src="./icon.svg" alt="Notes & Tasks" class="brand-icon">
+      <div>
+        <div class="brand-title">Notes & Tasks</div>
+        <span class="brand-badge">PWA Companion</span>
+      </div>
+    </div>
+
+    <div class="nav-sections">
+      <button class="nav-item active" onclick="setNavView('all')">
+        <div class="nav-item-content">
+          <span class="nav-icon">📑</span>
+          <span>All Items</span>
+        </div>
+        <span class="nav-counter" id="countAll">0</span>
+      </button>
+
+      <button class="nav-item" onclick="setNavView('notes')">
+        <div class="nav-item-content">
+          <span class="nav-icon">📝</span>
+          <span>Notes</span>
+        </div>
+        <span class="nav-counter" id="countNotes">0</span>
+      </button>
+
+      <button class="nav-item" onclick="setNavView('tasks')">
+        <div class="nav-item-content">
+          <span class="nav-icon">✅</span>
+          <span>Tasks</span>
+        </div>
+        <span class="nav-counter" id="countTasks">0</span>
+      </button>
+
+      <button class="nav-item" onclick="setNavView('starred')">
+        <div class="nav-item-content">
+          <span class="nav-icon">⭐</span>
+          <span>Starred</span>
+        </div>
+        <span class="nav-counter" id="countStarred">0</span>
+      </button>
+
+      <div class="nav-label">Permanent Folders</div>
+      
+      <!-- Permanent Folder 1: Completed Tasks (-999) -->
+      <button class="nav-item" onclick="setNavView('folder', -999)">
+        <div class="nav-item-content">
+          <span class="perma-folder-badge folder-completed-dot"></span>
+          <span>Completed Tasks</span>
+        </div>
+        <span class="nav-counter" id="countCompletedTasks">0</span>
+      </button>
+
+      <!-- Permanent Folder 2: Shared Links (-998) + 14 Permanent App Subfolders -->
+      <div style="display:flex; align-items:center; gap:2px;">
+        <button class="nav-item" id="navBtnSharedLinks" style="flex:1;" onclick="setNavView('folder', -998)">
+          <div class="nav-item-content">
+            <span class="perma-folder-badge folder-links-dot"></span>
+            <span>Shared Links</span>
+          </div>
+          <span class="nav-counter" id="countSharedLinks">0</span>
+        </button>
+        <button class="folder-btn-action" id="btnToggleSharedSubfolders" onclick="toggleSharedLinksSubfoldersSidebar(event)" title="Expand/Collapse 14 App Subfolders" style="padding:6px 8px; font-size:0.78rem;">▾</button>
+      </div>
+      <div id="sharedLinksSubfoldersSidebar" style="display:flex; flex-direction:column; gap:2px; margin-bottom:4px;"></div>
+
+      <div class="nav-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Custom Folders</span>
+        <button class="btn-icon" style="font-size:0.85rem;" onclick="openCreateFolderModal()" title="Add Folder">+</button>
+      </div>
+      <div id="customFoldersList"></div>
+
+      <!-- Permanent Tags Section in Sidebar -->
+      <div class="nav-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Tags</span>
+        <button class="btn-icon" style="font-size:0.85rem;" onclick="openCreateTagModal()" title="Add Tag">+</button>
+      </div>
+      <div id="sidebarTagsList" style="display:flex; flex-direction:column; gap:2px;"></div>
+
+      <div class="nav-label">Backup & Sync</div>
+      <button class="nav-item" onclick="openSyncSettingsModal()">
+        <div class="nav-item-content">
+          <span class="nav-icon">☁️</span>
+          <span>Google Drive Sync</span>
+        </div>
+      </button>
+      <button class="nav-item" onclick="exportJsonFile()">
+        <div class="nav-item-content">
+          <span class="nav-icon">💾</span>
+          <span>Export JSON File</span>
+        </div>
+      </button>
+      <button class="nav-item" onclick="triggerImportFileInput()">
+        <div class="nav-item-content">
+          <span class="nav-icon">📂</span>
+          <span>Import JSON File</span>
+        </div>
+      </button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="handleFileImport(event)">
+    </div>
+
+    <!-- PWA Install prompt in sidebar -->
+    <div style="padding: 16px; border-top: 1px solid var(--border-color);" id="sidebarInstallArea">
+      <button class="btn btn-secondary" style="width:100%; justify-content:center;" id="btnInstallPwa" onclick="installPwa()">
+        💻 Install on Windows
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main View -->
+  <main class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+
+      <!-- Search Bar -->
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="globalSearchInput" placeholder="Search notes, tasks, tags..." oninput="handleSearch(this.value)">
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Sync indicator pill -->
+        <div class="sync-status-pill" id="syncStatusPill" onclick="openSyncSettingsModal()" title="Google Drive Cloud Sync Status">
+          <div class="sync-indicator" id="syncIndicatorDot"></div>
+          <span id="syncStatusText">Local Only</span>
+        </div>
+
+        <button class="btn btn-secondary" onclick="manualSync()" id="btnSyncNow" title="Sync now with Google Drive">
+          🔄 Sync
+        </button>
+
+        <button class="btn btn-primary" onclick="openCreateNoteModal()" title="Create New Note">
+          + Note
+        </button>
+        <button class="btn btn-success" onclick="openCreateTaskModal()" title="Create New Task">
+          + Task
+        </button>
+        <button class="btn" style="background:#2563eb; color:#fff;" onclick="openAddLinkModal()" title="Fetch metadata and save link to Shared Links permanent folder">
+          🔗 + Links
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateFolderModal(null)" title="Create New Folder">
+          + Folder
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateTagModal()" title="Create New Tag">
+          🏷️ + Tag
+        </button>
+        <button class="btn btn-secondary" id="btnTopAddSubfolder" onclick="openCreateSubfolderFromCurrent()" style="display:none;" title="Create Subfolder in current folder">
+          + Subfolder
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="content-viewport">
+      <!-- Windows PWA Banner -->
+      <div class="install-banner" id="pwaBanner">
+        <div>
+          <strong>Install Notes & Tasks for Windows</strong>
+          <div style="font-size:0.82rem; opacity:0.9;">Run as a native desktop application with full offline support.</div>
+        </div>
+        <button class="btn btn-secondary" onclick="installPwa()">Install</button>
+      </div>
+
+      <!-- Header panel -->
+      <div class="header-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <h1 class="page-title" id="pageTitleText">
+            📑 All Items
+          </h1>
+          <div id="folderViewSeparationControl" style="display:none; align-items:center; gap:6px;">
+            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Folder View:</span>
+            <button class="filter-chip active" id="btnFolderViewSplit" onclick="setFolderSeparationMode('split', this)" title="Separate Tasks and Notes sections">📑 Separated</button>
+            <button class="filter-chip" id="btnFolderViewCombined" onclick="setFolderSeparationMode('combined', this)" title="Show unified stream">🔀 Unified</button>
+          </div>
+        </div>
+
+        <div class="view-filters" id="typeFilters">
+          <button class="filter-chip active" onclick="setFilterType('all', this)">All</button>
+          <button class="filter-chip" onclick="setFilterType('notes', this)">📝 Notes</button>
+          <button class="filter-chip" onclick="setFilterType('tasks', this)">✅ Tasks</button>
+          <button class="filter-chip" onclick="setFilterType('starred', this)">⭐ Starred</button>
+          <button class="filter-chip" onclick="setNavView('folder', -998)">🔗 Shared Links</button>
+        </div>
+
+        <!-- Tags filter horizontal bar -->
+        <div class="tags-bar-container" id="globalTagsBar">
+          <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600; white-space:nowrap;">🏷️ Filter Tag:</span>
+          <div id="globalTagsChipsRow" style="display:flex; gap:6px; align-items:center;"></div>
+        </div>
+
+        <!-- Permanent Shared Links 14 Platform Subfolders Bar (shown when inside Shared Links or any subfolder) -->
+        <div class="tags-bar-container" id="sharedLinksSubfoldersBar" style="display:none; padding-top:2px;">
+          <span style="font-size:0.75rem; color:#60a5fa; font-weight:700; white-space:nowrap;">📂 App Subfolder:</span>
+          <div id="sharedLinksSubfoldersChipsRow" style="display:flex; gap:6px; align-items:center;"></div>
+        </div>
+      </div>
+
+      <!-- Cards Grid -->
+      <div class="cards-grid" id="itemsContainer"></div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">No items found</div>
+        <div style="font-size: 0.88rem;">Create a new note or task using the buttons above, or sync with your Android app.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- Note Modal -->
+<div class="modal-backdrop" id="noteModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.3rem;">📝</span>
+        <h3 class="modal-title" id="noteModalTitle">Create Note</h3>
+      </div>
+      <button class="btn-icon" onclick="closeModal('noteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input type="text" class="form-input" id="noteInputTitle" placeholder="Note title..." style="font-size:1.05rem; font-weight:600;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Content (Markdown supported)</label>
+        <!-- Rich Markdown Formatting Toolbar -->
+        <div class="editor-toolbar">
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('**', '**')" title="Bold"><strong>B</strong></button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('*', '*')" title="Italic"><em>I</em></button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('### ', '')" title="Header">H</button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('- ', '')" title="Bullet List">• List</button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('[', '](https://)')" title="Insert Link">🔗 Link</button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('`', '`')" title="Code">`code`</button>
+          <button type="button" class="tool-btn" onclick="insertNoteMarkdown('> ', '')" title="Quote">” Quote</button>
+        </div>
+        <textarea class="form-textarea editor-with-toolbar" id="noteInputContent" placeholder="Write your thoughts, ideas, checklists or paste links..."></textarea>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label">Folder Location</label>
+            <button type="button" class="folder-btn-action" onclick="openCreateFolderModal(null)" style="color:var(--primary); font-size:0.75rem;">+ New Folder</button>
+          </div>
+          <select class="form-select" id="noteSelectFolder">
+            <option value="">No Folder (Root)</option>
+            <option value="-998">📁 Shared Links (Permanent)</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Color Accent</label>
+          <div class="color-picker-row" id="noteColorPicker" style="margin-top:4px;">
+            <div class="color-swatch active" style="background:#94a3b8;" onclick="selectNoteColor(0, this)" title="Default Gray"></div>
+            <div class="color-swatch" style="background:#ef4444;" onclick="selectNoteColor(1, this)" title="Coral Red"></div>
+            <div class="color-swatch" style="background:#10b981;" onclick="selectNoteColor(2, this)" title="Emerald Green"></div>
+            <div class="color-swatch" style="background:#3b82f6;" onclick="selectNoteColor(3, this)" title="Ocean Blue"></div>
+            <div class="color-swatch" style="background:#a855f7;" onclick="selectNoteColor(4, this)" title="Purple Violet"></div>
+            <div class="color-swatch" style="background:#f59e0b;" onclick="selectNoteColor(5, this)" title="Warm Amber"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags (comma separated)</label>
+        <input type="text" class="form-input" id="noteInputTags" placeholder="work, ideas, links, projects...">
+        <div class="quick-tags-row">
+          <span style="font-size:0.75rem; color:var(--text-muted); align-self:center;">Quick:</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('noteInputTags', 'work')">+work</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('noteInputTags', 'personal')">+personal</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('noteInputTags', 'ideas')">+ideas</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('noteInputTags', 'urgent')">+urgent</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('noteInputTags', 'project')">+project</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.3rem;">✅</span>
+        <h3 class="modal-title" id="taskModalTitle">Create Task</h3>
+      </div>
+      <button class="btn-icon" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Task Title</label>
+        <input type="text" class="form-input" id="taskInputTitle" placeholder="What needs to be done?" style="font-size:1.05rem; font-weight:600;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description / Detailed Notes</label>
+        <textarea class="form-textarea" style="min-height:75px;" id="taskInputDescription" placeholder="Optional context, steps, or requirements..."></textarea>
+      </div>
+      <div style="display:flex; gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="taskSelectPriority">
+            <option value="1">🟢 Low Priority</option>
+            <option value="2" selected>🟡 Medium Priority</option>
+            <option value="3">🔴 High Priority</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label">Folder Location</label>
+            <button type="button" class="folder-btn-action" onclick="openCreateFolderModal(null)" style="color:var(--primary); font-size:0.75rem;">+ New Folder</button>
+          </div>
+          <select class="form-select" id="taskSelectFolder">
+            <option value="">No Folder (Root)</option>
+            <option value="-999">📁 Completed Tasks (Permanent)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date & Time</label>
+        <input type="datetime-local" class="form-input" id="taskInputDueDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags (comma separated)</label>
+        <input type="text" class="form-input" id="taskInputTags" placeholder="todo, urgent, home, sprint...">
+        <div class="quick-tags-row">
+          <span style="font-size:0.75rem; color:var(--text-muted); align-self:center;">Quick:</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('taskInputTags', 'todo')">+todo</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('taskInputTags', 'urgent')">+urgent</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('taskInputTags', 'work')">+work</span>
+          <span class="quick-tag-chip" onclick="appendTagToInput('taskInputTags', 'review')">+review</span>
+        </div>
+      </div>
+      <!-- Subtasks -->
+      <div class="form-group">
+        <label class="form-label">Subtasks & Checklist</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="form-input" id="subtaskDraftInput" placeholder="Add subtask item..." onkeydown="if(event.key==='Enter'){event.preventDefault();addDraftSubtask();}">
+          <button type="button" class="btn btn-secondary" onclick="addDraftSubtask()">+ Add</button>
+        </div>
+        <div class="subtasks-box" id="modalSubtasksList" style="margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('taskModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Folder Modal (Supports creating root folders or subfolders) -->
+<div class="modal-backdrop" id="folderModal">
+  <div class="modal-card" style="max-width:460px;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.3rem;">📁</span>
+        <h3 class="modal-title" id="folderModalTitle">Create Folder</h3>
+      </div>
+      <button class="btn-icon" onclick="closeModal('folderModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Folder Name</label>
+        <input type="text" class="form-input" id="folderInputName" placeholder="e.g. Work, Personal, Finances, Projects" style="font-size:1rem; font-weight:600;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Parent Folder (Select for Subfolder)</label>
+        <select class="form-select" id="folderSelectParent">
+          <option value="">None (Top-Level Root Folder)</option>
+        </select>
+        <span style="font-size:0.75rem; color:var(--text-muted);">
+          Select an existing folder above to create a nested subfolder.
+        </span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('folderModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFolder()">Save Folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Link Modal (+Links) with Automatic Metadata, 14 App Subfolders & 1-Tap Tag Auto-Save -->
+<div class="modal-backdrop" id="linkModal">
+  <div class="modal-card" style="max-width:560px;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.3rem;">🔗</span>
+        <h3 class="modal-title">Quick Share & Save Link with Metadata</h3>
+      </div>
+      <button class="btn-icon" onclick="closeModal('linkModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:8px; line-height:1.4;">
+        Paste any link (YouTube, Pinterest, X/Twitter, TikTok, Instagram, Reddit, Twitch, Discord, Facebook, Threads, Snapchat, Porn, Firefox, Chrome). Metadata is extracted automatically and routed into its permanent <strong>Shared Links</strong> subfolder.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Link URL or Shared Text</label>
+        <div style="display:flex; gap:8px;">
+          <input type="url" class="form-input" id="linkInputUrl" placeholder="https://pinterest.com/pin/... or https://youtube.com/... or https://x.com/..." style="font-size:0.95rem; flex:1;" oninput="onLinkUrlInputChanged(this.value)">
+          <button type="button" class="btn btn-primary" onclick="fetchLinkMetadataManual()" id="btnFetchMeta">
+            ⚡ Fetch
+          </button>
+        </div>
+      </div>
+
+      <!-- 1-Tap Tag Selection Auto-Save Box -->
+      <div style="background:rgba(255, 255, 255, 0.04); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:0.76rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.5px;">
+            ⚡ Tap a Tag to Assign & Auto-Save Immediately
+          </span>
+          <label style="font-size:0.74rem; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chkOneTapTagAutoSave" checked> 1-Tap Auto-Save
+          </label>
+        </div>
+        <div style="margin-bottom:8px;">
+          <input type="text" class="form-input" id="linkTagSearchInput" placeholder="🔍 Search or filter tags (#work, #ideas...)" style="padding:6px 10px; font-size:0.82rem;" oninput="renderLinkQuickAutoSaveTags()">
+        </div>
+        <div class="quick-tags-row" id="linkQuickAutoSaveTagsRow" style="margin-top:4px; max-height:150px; overflow-y:auto;"></div>
+      </div>
+
+      <!-- Live Metadata Preview Box -->
+      <div class="link-meta-preview" id="linkMetaPreview">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; color:var(--primary);">
+            Detected Metadata Preview
+          </span>
+          <span class="link-badge" id="linkMetaPlatformBadge">🔗 Shared Links</span>
+        </div>
+        <img id="linkMetaImagePreview" class="link-meta-thumb" src="" alt="Thumbnail preview" style="display:none;">
+        <div style="font-weight:600; font-size:0.92rem; margin-bottom:4px;" id="linkMetaTitlePreview">Title</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;" id="linkMetaDescPreview">Description</div>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:6px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Permanent Subfolder in Shared Links</label>
+          <select class="form-select" id="linkSelectSubfolder"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Title (Auto-filled or Custom)</label>
+        <input type="text" class="form-input" id="linkInputTitle" placeholder="Page or Video Title">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes / Description</label>
+        <textarea class="form-textarea" style="min-height:56px;" id="linkInputDescription" placeholder="Optional notes, author, or summary..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Image Thumbnail URL (Auto-fetched)</label>
+        <input type="url" class="form-input" id="linkInputImage" placeholder="https://... image url">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags (comma separated)</label>
+        <input type="text" class="form-input" id="linkInputTags" placeholder="links, video, social, inspiration...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('linkModal')">Cancel</button>
+      <button class="btn" style="background:#2563eb; color:#fff;" onclick="saveLinkToSharedLinks()">Save Link Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Permanent Tag Modal -->
+<div class="modal-backdrop" id="tagModal">
+  <div class="modal-card" style="max-width:440px;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.3rem;">🏷️</span>
+        <h3 class="modal-title">Create Tag</h3>
+      </div>
+      <button class="btn-icon" onclick="closeModal('tagModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tag Name</label>
+        <input type="text" class="form-input" id="tagInputName" placeholder="e.g. work, priority, urgent, recipes" style="font-size:1rem; font-weight:600;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tag Color Accent</label>
+        <div class="color-picker-row" id="tagColorPicker" style="margin-top:6px;">
+          <div class="color-swatch active" style="background:#6366f1;" onclick="selectTagColor(0, this)" title="Indigo"></div>
+          <div class="color-swatch" style="background:#ef4444;" onclick="selectTagColor(1, this)" title="Red"></div>
+          <div class="color-swatch" style="background:#10b981;" onclick="selectTagColor(2, this)" title="Green"></div>
+          <div class="color-swatch" style="background:#3b82f6;" onclick="selectTagColor(3, this)" title="Blue"></div>
+          <div class="color-swatch" style="background:#a855f7;" onclick="selectTagColor(4, this)" title="Purple"></div>
+          <div class="color-swatch" style="background:#f59e0b;" onclick="selectTagColor(5, this)" title="Amber"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('tagModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomTag()">Save Tag</button>
+    </div>
+  </div>
+</div>
+
+<!-- Google Drive Sync & Settings Modal -->
+<div class="modal-backdrop" id="syncModal">
+  <div class="modal-card" style="max-width:550px;">
+    <div class="modal-header">
+      <h3 class="modal-title">☁️ Google Drive Cloud Sync</h3>
+      <button class="btn-icon" onclick="closeModal('syncModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.5;">
+        Connect to Google Drive to seamlessly sync your notes and tasks with your Android app using the same <code>notes_tasks_backup.json</code> file.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">OAuth 2.0 Web Client ID</label>
+        <input type="text" class="form-input" id="settingsClientId" placeholder="e.g. 554694732182-...apps.googleusercontent.com">
+        <span style="font-size:0.75rem; color:var(--text-muted);">
+          From Google Cloud Console (OAuth Client ID type: Web Application).
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Google API Key (Optional)</label>
+        <input type="text" class="form-input" id="settingsApiKey" placeholder="AIzaSy...">
+      </div>
+
+      <div class="form-group" style="padding-top:8px;">
+        <label class="form-label">Direct OAuth Access Token (Fastest 1-Click Testing)</label>
+        <input type="password" class="form-input" id="settingsAccessToken" placeholder="Paste access token (e.g. ya29....)">
+        <span style="font-size:0.75rem; color:var(--text-muted);">
+          You can test instantly by pasting an access token or click "Connect with Google" below once you set your Client ID.
+        </span>
+      </div>
+
+      <div style="background:var(--bg-main); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+        <div style="font-size:0.82rem; font-weight:600; margin-bottom:4px;">Sync Status</div>
+        <div style="font-size:0.85rem;" id="modalSyncStatusDetails">Not connected</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-danger" onclick="disconnectDrive()" id="btnDisconnectDrive" style="display:none;">Disconnect</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('syncModal')">Close</button>
+        <button class="btn btn-primary" onclick="connectOrSaveDriveSettings()">Save & Connect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toastNotice">
+  <span id="toastMessage">Done!</span>
+</div>
+
+<script>
+/**
+ * NOTES & TASKS WEB / PWA CLIENT ENGINE
+ * Fully synchronized with Android app's BackupModels.kt & Room schema
+ */
+
+// Global App State
+const APP_STORAGE_KEY = 'notes_tasks_data_v2';
+const DRIVE_STORAGE_KEY = 'notes_tasks_drive_config';
+
+const BACKUP_FILENAME = 'notes_tasks_backup.json';
+const SCOPE_DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file';
+const SCOPE_DRIVE_APPDATA = 'https://www.googleapis.com/auth/drive.appdata';
+
+let state = {
+  exportVersion: 2,
+  exportedAt: Date.now(),
+  folders: [],
+  notes: [],
+  tasks: [],
+  customTags: [],
+  deletedItems: []
+};
+
+// Permanent folders (exact IDs from Android FolderEntity.kt)
+const PERMA_COMPLETED_TASKS_ID = -999;
+const PERMA_SHARED_LINKS_ID = -998;
+
+const PERMANENT_SHARED_SUBFOLDERS = [
+  { id: -901, name: 'YouTube', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 4, defaultTags: ['youtube', 'video', 'links'] },
+  { id: -902, name: 'Firefox', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 3, defaultTags: ['firefox', 'web', 'links'] },
+  { id: -903, name: 'Chrome', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 0, defaultTags: ['chrome', 'web', 'links'] },
+  { id: -904, name: 'Porn', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 4, defaultTags: ['porn', 'nsfw', 'video', 'links'] },
+  { id: -905, name: 'TikTok', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 2, defaultTags: ['tiktok', 'short', 'video', 'links'] },
+  { id: -906, name: 'Twitch', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 2, defaultTags: ['twitch', 'stream', 'gaming', 'links'] },
+  { id: -907, name: 'Facebook', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 0, defaultTags: ['facebook', 'social', 'links'] },
+  { id: -908, name: 'Instagram', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 4, defaultTags: ['instagram', 'reels', 'social', 'links'] },
+  { id: -909, name: 'X (Twitter)', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 5, defaultTags: ['x', 'twitter', 'social', 'links'] },
+  { id: -910, name: 'Threads', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 2, defaultTags: ['threads', 'social', 'links'] },
+  { id: -911, name: 'Pinterest', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 4, defaultTags: ['pinterest', 'inspiration', 'pins', 'links'] },
+  { id: -912, name: 'Snapchat', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 3, defaultTags: ['snapchat', 'spotlight', 'social', 'links'] },
+  { id: -913, name: 'Reddit', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 3, defaultTags: ['reddit', 'discussion', 'thread', 'links'] },
+  { id: -914, name: 'Discord', parentFolderId: PERMA_SHARED_LINKS_ID, colorIndex: 2, defaultTags: ['discord', 'community', 'chat', 'links'] }
+];
+
+function isSharedLinksSubfolderId(folderId) {
+  return typeof folderId === 'number' && folderId <= -901 && folderId >= -914;
+}
+
+function isSharedLinksFamilyId(folderId) {
+  return folderId === PERMA_SHARED_LINKS_ID || isSharedLinksSubfolderId(folderId);
+}
+
+function isPermanentFolderId(folderId) {
+  return folderId === PERMA_COMPLETED_TASKS_ID || isSharedLinksFamilyId(folderId);
+}
+
+function getPermanentSubfolderById(folderId) {
+  return PERMANENT_SHARED_SUBFOLDERS.find(s => s.id === folderId) || null;
+}
+
+let sharedSubfoldersSidebarExpanded = true;
+
+let currentNav = 'all'; // 'all', 'notes', 'tasks', 'starred', 'folder'
+let currentFolderId = null;
+let currentSearch = '';
+let currentTypeFilter = 'all';
+let selectedTagFilter = null; // Active tag filter string or null
+let folderSeparationMode = 'split'; // 'split' (Tasks & Notes separate sections) or 'combined'
+
+let editingNoteId = null;
+let editingTaskId = null;
+let selectedNoteColor = 0;
+let selectedTagColorIndex = 0;
+let draftSubtasks = [];
+
+// Drive state
+const DRIVE_MIRROR_KEY = 'notes_tasks_drive_cloud_mirror';
+let driveConfig = {
+  clientId: '',
+  apiKey: '',
+  accessToken: '',
+  tokenIssuedAt: 0,
+  accountEmail: '',
+  cachedFileId: '',
+  lastSyncTime: 0,
+  isConnected: false
+};
+
+let tokenClient = null;
+let deferredPrompt = null;
+
+// Initialization
+window.addEventListener('DOMContentLoaded', () => {
+  loadLocalState();
+  loadDriveConfig();
+  renderNavigation();
+  renderItems();
+  updateSyncBadge();
+
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration error:', err));
+  }
+
+  // PWA install banner listener
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('pwaBanner').style.display = 'flex';
+    document.getElementById('sidebarInstallArea').style.display = 'block';
+  });
+
+  // Auto-sync on open if connected
+  if (driveConfig.accessToken || driveConfig.isConnected) {
+    manualSync(true);
+  }
+
+  // Handle incoming Web Share Target query params (?url=...&text=...&title=...)
+  const params = new URLSearchParams(window.location.search);
+  const sharedUrl = params.get('url') || params.get('text') || '';
+  const sharedTitle = params.get('title') || '';
+  if (sharedUrl.trim()) {
+    openAddLinkModal(sharedUrl.trim(), sharedTitle.trim());
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+});
+
+function loadLocalState() {
+  try {
+    const raw = localStorage.getItem(APP_STORAGE_KEY);
+    if (raw) {
+      state = JSON.parse(raw);
+      if (!Array.isArray(state.folders)) state.folders = [];
+      if (!Array.isArray(state.notes)) state.notes = [];
+      if (!Array.isArray(state.tasks)) state.tasks = [];
+      if (!Array.isArray(state.customTags)) {
+        state.customTags = [
+          { name: "work", colorIndex: 0 },
+          { name: "personal", colorIndex: 2 },
+          { name: "links", colorIndex: 3 },
+          { name: "ideas", colorIndex: 4 },
+          { name: "urgent", colorIndex: 1 }
+        ];
+      }
+      if (!Array.isArray(state.deletedItems)) {
+        state.deletedItems = [];
+      }
+    } else {
+      const baseNow = Date.now();
+      // Seed with initial welcoming notes and tasks (distinct createdAt timestamps)
+      state = {
+        exportVersion: 2,
+        exportedAt: baseNow,
+        folders: [
+          { id: 1, name: "Personal", parentFolderId: null, colorIndex: 3, createdAt: baseNow - 5000 },
+          { id: 2, name: "Work", parentFolderId: null, colorIndex: 4, createdAt: baseNow - 4000 }
+        ],
+        customTags: [
+          { name: "work", colorIndex: 0, createdAt: baseNow - 3000 },
+          { name: "personal", colorIndex: 2, createdAt: baseNow - 3000 },
+          { name: "links", colorIndex: 3, createdAt: baseNow - 3000 },
+          { name: "ideas", colorIndex: 4, createdAt: baseNow - 3000 },
+          { name: "urgent", colorIndex: 1, createdAt: baseNow - 3000 }
+        ],
+        notes: [
+          {
+            title: "Welcome to Notes & Tasks Web!",
+            content: "This web app is designed to seamlessly sync with your Android app using Google Drive.\n\n• Permanent folders: 'Completed Tasks' (-999) & 'Shared Links' (-998)\n• All changes auto-save offline\n• Ready for Windows desktop installation via PWA",
+            tags: "welcome,sync",
+            imageUris: "",
+            isStarred: true,
+            colorIndex: 3,
+            folderId: null,
+            createdAt: baseNow - 2000,
+            updatedAt: baseNow - 2000
+          },
+          {
+            title: "Helpful Documentation & Links",
+            content: "Check Google Drive API docs or export your JSON file at any time to import into Android.",
+            tags: "links,docs",
+            imageUris: "",
+            isStarred: false,
+            colorIndex: 2,
+            folderId: PERMA_SHARED_LINKS_ID,
+            createdAt: baseNow - 1000,
+            updatedAt: baseNow - 1000
+          }
+        ],
+        tasks: [
+          {
+            title: "Setup Google Drive Sync",
+            description: "Go to Backup & Sync in sidebar to link your Google account for cloud synchronization.",
+            isCompleted: false,
+            isStarred: true,
+            dueDate: baseNow + 86400000,
+            reminderTime: null,
+            reminderEnabled: false,
+            priority: 3,
+            tags: "setup",
+            folderId: null,
+            createdAt: baseNow,
+            updatedAt: baseNow,
+            subtasks: [
+              { title: "Open Settings", isCompleted: true, orderIndex: 0 },
+              { title: "Enter Client ID or Access Token", isCompleted: false, orderIndex: 1 },
+              { title: "Tap Sync", isCompleted: false, orderIndex: 2 }
+            ]
+          }
+        ],
+        deletedItems: []
+      };
+      saveLocalState();
+    }
+  } catch (e) {
+    console.error('Error loading local state:', e);
+  }
+}
+
+function saveLocalState() {
+  state.exportedAt = Date.now();
+  if (!Array.isArray(state.deletedItems)) state.deletedItems = [];
+  localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(state));
+  renderNavigation();
+}
+
+// ================= TOMBSTONE DELETION TRACKING (SYNCED WITH ANDROID) =================
+
+const TOMBSTONE_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+
+function makeTombstoneKey(itemType, title, createdAt) {
+  const type = String(itemType || '').trim().toUpperCase();
+  const normTitle = String(title || '').trim().toLowerCase();
+  if (type === 'TAG') {
+    return `TAG|${normTitle.replace(/^#/, '')}`;
+  }
+  return `${type}|${normTitle}|${Number(createdAt) || 0}`;
+}
+
+function normalizeTombstone(raw) {
+  if (!raw || !raw.itemType) return null;
+  const itemType = String(raw.itemType).trim().toUpperCase();
+  const title = String(raw.title || '').trim();
+  const createdAt = Number(raw.createdAt) || 0;
+  const deletedAt = Number(raw.deletedAt) || Date.now();
+  const itemKey = (raw.itemKey && String(raw.itemKey).trim())
+    ? String(raw.itemKey).trim()
+    : makeTombstoneKey(itemType, title, createdAt);
+  return { itemKey, itemType, title, createdAt, deletedAt };
+}
+
+function recordTombstone(itemType, title, createdAt, updatedAt) {
+  if (!Array.isArray(state.deletedItems)) state.deletedItems = [];
+  const type = String(itemType).trim().toUpperCase();
+  const cleanTitle = String(title || '').trim();
+  const cAt = Number(createdAt) || 0;
+  const uAt = Number(updatedAt) || 0;
+  // Strictly greater than item's timestamps so minor clock skew never resurrects a deleted item
+  const deletedAt = Math.max(Date.now(), Math.max(uAt, cAt) + 1);
+  const itemKey = makeTombstoneKey(type, cleanTitle, cAt);
+
+  const idx = state.deletedItems.findIndex(t => (t.itemKey || '').toLowerCase() === itemKey.toLowerCase());
+  const entry = { itemKey, itemType: type, title: cleanTitle, createdAt: cAt, deletedAt };
+  if (idx !== -1) {
+    if (deletedAt > (state.deletedItems[idx].deletedAt || 0)) {
+      state.deletedItems[idx] = entry;
+    }
+  } else {
+    state.deletedItems.push(entry);
+  }
+}
+
+function clearTombstoneFor(itemType, title) {
+  if (!Array.isArray(state.deletedItems)) return;
+  const type = String(itemType).trim().toUpperCase();
+  const normTitle = String(title || '').trim().replace(/^#/, '').toLowerCase();
+  state.deletedItems = state.deletedItems.filter(t => {
+    if ((t.itemType || '').toUpperCase() !== type) return true;
+    const tTitle = String(t.title || '').trim().replace(/^#/, '').toLowerCase();
+    return tTitle !== normTitle;
+  });
+}
+
+function findMatchingTombstones(tombstones, itemType, title, createdAt, sameCreatedAtCount) {
+  const type = String(itemType).trim().toUpperCase();
+  const cleanTitle = String(title || '').trim().toLowerCase();
+  const cAt = Number(createdAt) || 0;
+  const canonicalKey = makeTombstoneKey(type, title, cAt).toLowerCase();
+
+  return tombstones.filter(t => {
+    if ((t.itemType || '').toUpperCase() !== type) return false;
+    if ((t.itemKey || '').toLowerCase() === canonicalKey) return true;
+    if (type === 'TAG') {
+      return String(t.title || '').trim().replace(/^#/, '').toLowerCase() === cleanTitle.replace(/^#/, '');
+    }
+    if (type === 'FOLDER') {
+      const sameName = String(t.title || '').trim().toLowerCase() === cleanTitle;
+      const tCreated = Number(t.createdAt) || 0;
+      return sameName && (tCreated === 0 || tCreated === cAt || (Number(t.deletedAt) || 0) >= cAt);
+    }
+    const tCreated = Number(t.createdAt) || 0;
+    const sameCreated = tCreated > 0 && cAt > 0 && tCreated === cAt;
+    const sameTitle = String(t.title || '').trim().toLowerCase() === cleanTitle;
+    return (sameCreated && sameTitle) ||
+      (sameCreated && sameCreatedAtCount <= 1) ||
+      (tCreated === 0 && sameTitle);
+  });
+}
+
+function buildSyncPayload() {
+  const cutoff = Date.now() - TOMBSTONE_RETENTION_MS;
+  const activeTombstones = (state.deletedItems || [])
+    .map(normalizeTombstone)
+    .filter(t => t && t.deletedAt >= cutoff)
+    .sort((a, b) => b.deletedAt - a.deletedAt)
+    .slice(0, 2000);
+  state.deletedItems = activeTombstones;
+
+  return {
+    exportVersion: 2,
+    exportedAt: Date.now(),
+    folders: state.folders || [],
+    notes: state.notes || [],
+    tasks: state.tasks || [],
+    tags: state.customTags || [],
+    customTags: state.customTags || [],
+    deletedItems: activeTombstones
+  };
+}
+
+function encodeArg(str) {
+  return encodeURIComponent(str || '').replace(/'/g, '%27');
+}
+
+function decodeArg(str) {
+  try {
+    return decodeURIComponent(str || '');
+  } catch (e) {
+    return str || '';
+  }
+}
+
+function loadDriveConfig() {
+  try {
+    const raw = localStorage.getItem(DRIVE_STORAGE_KEY);
+    if (raw) {
+      driveConfig = { ...driveConfig, ...JSON.parse(raw) };
+    }
+  } catch (e) {}
+}
+
+function saveDriveConfig() {
+  localStorage.setItem(DRIVE_STORAGE_KEY, JSON.stringify(driveConfig));
+  updateSyncBadge();
+}
+
+// ================= RENDER LOGIC =================
+
+function renderNavigation() {
+  // Counts
+  const totalNotes = state.notes.length;
+  const regularNotesCount = state.notes.filter(n => !isSharedLinksFamilyId(n.folderId)).length;
+  const totalTasks = state.tasks.length;
+  const totalStarred = state.notes.filter(n => n.isStarred).length + state.tasks.filter(t => t.isStarred).length;
+  
+  // Permanent completed tasks count
+  const completedTasksCount = state.tasks.filter(t => t.isCompleted || t.folderId === PERMA_COMPLETED_TASKS_ID).length;
+  // Permanent shared links count (includes parent -998 and all 14 permanent app subfolders -901..-914)
+  const sharedLinksCount = state.notes.filter(n => isSharedLinksFamilyId(n.folderId)).length;
+
+  document.getElementById('countAll').textContent = totalNotes + totalTasks;
+  document.getElementById('countNotes').textContent = regularNotesCount;
+  document.getElementById('countTasks').textContent = totalTasks;
+  document.getElementById('countStarred').textContent = totalStarred;
+  document.getElementById('countCompletedTasks').textContent = completedTasksCount;
+  document.getElementById('countSharedLinks').textContent = sharedLinksCount;
+
+  // Render 14 Permanent Shared Links Subfolders in Sidebar
+  const sharedSubSidebar = document.getElementById('sharedLinksSubfoldersSidebar');
+  const toggleBtn = document.getElementById('btnToggleSharedSubfolders');
+  if (toggleBtn) {
+    toggleBtn.textContent = sharedSubfoldersSidebarExpanded ? '▾' : '▸';
+  }
+  if (sharedSubSidebar) {
+    sharedSubSidebar.style.display = sharedSubfoldersSidebarExpanded ? 'flex' : 'none';
+    sharedSubSidebar.innerHTML = '';
+    PERMANENT_SHARED_SUBFOLDERS.forEach(sub => {
+      const subCount = state.notes.filter(n => n.folderId === sub.id).length;
+      const btn = document.createElement('button');
+      btn.className = `nav-item subfolder-item ${currentNav === 'folder' && currentFolderId === sub.id ? 'active' : ''}`;
+      btn.onclick = () => setNavView('folder', sub.id);
+      btn.innerHTML = `
+        <div class="nav-item-content">
+          <span class="nav-icon">↳ 🔗</span>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(sub.name)}</span>
+        </div>
+        <span class="nav-counter">${subCount}</span>
+      `;
+      sharedSubSidebar.appendChild(btn);
+    });
+  }
+
+  // Render Horizontal 14 Subfolders Strip when inside Shared Links or any of its 14 subfolders
+  const sharedBar = document.getElementById('sharedLinksSubfoldersBar');
+  const sharedChipsRow = document.getElementById('sharedLinksSubfoldersChipsRow');
+  if (sharedBar && sharedChipsRow) {
+    if (currentNav === 'folder' && isSharedLinksFamilyId(currentFolderId)) {
+      sharedBar.style.display = 'flex';
+      sharedChipsRow.innerHTML = '';
+
+      const allSharedChip = document.createElement('button');
+      allSharedChip.className = `tag-chip-filter ${currentFolderId === PERMA_SHARED_LINKS_ID ? 'active' : ''}`;
+      allSharedChip.innerHTML = `<span>All Shared (${sharedLinksCount})</span>`;
+      allSharedChip.onclick = () => setNavView('folder', PERMA_SHARED_LINKS_ID);
+      sharedChipsRow.appendChild(allSharedChip);
+
+      PERMANENT_SHARED_SUBFOLDERS.forEach(sub => {
+        const subCount = state.notes.filter(n => n.folderId === sub.id).length;
+        const chip = document.createElement('button');
+        chip.className = `tag-chip-filter ${currentFolderId === sub.id ? 'active' : ''}`;
+        chip.innerHTML = `<span>${escapeHtml(sub.name)}${subCount > 0 ? ` (${subCount})` : ''}</span>`;
+        chip.onclick = () => setNavView('folder', sub.id);
+        sharedChipsRow.appendChild(chip);
+      });
+    } else {
+      sharedBar.style.display = 'none';
+    }
+  }
+
+  // Custom folders & Subfolders tree
+  const listEl = document.getElementById('customFoldersList');
+  listEl.innerHTML = '';
+
+  const rootFolders = state.folders.filter(f => 
+    !isPermanentFolderId(f.id) && 
+    (!f.parentFolderId || f.parentFolderId === null)
+  );
+
+  rootFolders.forEach(f => {
+    renderFolderNavItem(f, listEl, false);
+    // Find any direct subfolders
+    const subfolders = state.folders.filter(sub => sub.parentFolderId === f.id);
+    subfolders.forEach(sub => {
+      renderFolderNavItem(sub, listEl, true);
+    });
+  });
+
+  // Render Tags in Sidebar and Header bar
+  renderTagsNavigation();
+}
+
+function toggleSharedLinksSubfoldersSidebar(e) {
+  if (e) e.stopPropagation();
+  sharedSubfoldersSidebarExpanded = !sharedSubfoldersSidebarExpanded;
+  renderNavigation();
+}
+
+const TAG_COLOR_HEX = ['#6366f1', '#ef4444', '#10b981', '#3b82f6', '#a855f7', '#f59e0b'];
+
+function renderTagsNavigation() {
+  const sidebarList = document.getElementById('sidebarTagsList');
+  const chipsRow = document.getElementById('globalTagsChipsRow');
+  if (sidebarList) sidebarList.innerHTML = '';
+  if (chipsRow) chipsRow.innerHTML = '';
+
+  // Collect all unique tags from notes, tasks, and state.customTags
+  const allTagNames = new Set();
+  (state.customTags || []).forEach(t => allTagNames.add(t.name.toLowerCase().trim()));
+  state.notes.forEach(n => {
+    (n.tags || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(x => allTagNames.add(x));
+  });
+  state.tasks.forEach(t => {
+    (t.tags || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(x => allTagNames.add(x));
+  });
+
+  // "All Tags" chip in header
+  if (chipsRow) {
+    const allChip = document.createElement('button');
+    allChip.className = `tag-chip-filter ${selectedTagFilter === null ? 'active' : ''}`;
+    allChip.innerHTML = `<span>All Tags</span>`;
+    allChip.onclick = () => filterByTag(null);
+    chipsRow.appendChild(allChip);
+  }
+
+  Array.from(allTagNames).sort().forEach(tagName => {
+    const customTag = (state.customTags || []).find(ct => ct.name.toLowerCase() === tagName);
+    const colorHex = TAG_COLOR_HEX[customTag ? (customTag.colorIndex || 0) : 0];
+    
+    // Count occurrences
+    const count = state.notes.filter(n => (n.tags || '').toLowerCase().includes(tagName)).length +
+                  state.tasks.filter(t => (t.tags || '').toLowerCase().includes(tagName)).length;
+
+    // Sidebar item
+    if (sidebarList) {
+      const item = document.createElement('div');
+      item.className = `sidebar-tag-item ${selectedTagFilter === tagName ? 'active' : ''}`;
+      item.onclick = () => filterByTag(tagName);
+      item.innerHTML = `
+        <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+          <span class="tag-dot" style="background:${colorHex};"></span>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#${escapeHtml(tagName)}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <span class="nav-counter">${count}</span>
+          ${customTag ? `<span class="folder-btn-action" onclick="event.stopPropagation(); deleteCustomTag('${escapeHtml(tagName)}')" title="Delete tag" style="color:var(--danger); padding:1px 4px;">✕</span>` : ''}
+        </div>
+      `;
+      sidebarList.appendChild(item);
+    }
+
+    // Top header chip
+    if (chipsRow) {
+      const chip = document.createElement('button');
+      chip.className = `tag-chip-filter ${selectedTagFilter === tagName ? 'active' : ''}`;
+      chip.innerHTML = `
+        <span class="tag-dot" style="background:${colorHex};"></span>
+        <span>#${escapeHtml(tagName)}</span>
+        <span style="opacity:0.75; font-size:0.7rem;">(${count})</span>
+      `;
+      chip.onclick = () => filterByTag(tagName);
+      chipsRow.appendChild(chip);
+    }
+  });
+}
+
+function filterByTag(tagName) {
+  if (selectedTagFilter === tagName) {
+    selectedTagFilter = null; // Toggle off if clicked again
+  } else {
+    selectedTagFilter = tagName;
+  }
+  renderTagsNavigation();
+  renderItems();
+}
+
+function setFolderSeparationMode(mode, btn) {
+  folderSeparationMode = mode;
+  document.querySelectorAll('#folderViewSeparationControl .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderItems();
+}
+
+function renderFolderNavItem(f, containerEl, isSubfolder = false) {
+  const noteCount = state.notes.filter(n => n.folderId === f.id).length;
+  const taskCount = state.tasks.filter(t => t.folderId === f.id).length;
+  const count = noteCount + taskCount;
+  
+  const div = document.createElement('button');
+  div.className = `nav-item ${isSubfolder ? 'subfolder-item' : ''} ${currentNav === 'folder' && currentFolderId === f.id ? 'active' : ''}`;
+  div.onclick = () => setNavView('folder', f.id);
+  div.innerHTML = `
+    <div class="nav-item-content">
+      <span class="nav-icon">${isSubfolder ? '↳ 📁' : '📁'}</span>
+      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:${isSubfolder ? '90px' : '110px'};">${escapeHtml(f.name)}</span>
+    </div>
+    <div class="folder-actions-row">
+      <span class="nav-counter" title="${noteCount} notes, ${taskCount} tasks">${count}</span>
+      ${!isSubfolder ? `<span class="folder-btn-action" onclick="event.stopPropagation(); openCreateFolderModal(${f.id})" title="Add Subfolder" style="font-weight:bold;">+</span>` : ''}
+      <span class="folder-btn-action" onclick="event.stopPropagation(); deleteFolder(${f.id})" title="Delete folder" style="color:var(--danger);">✕</span>
+    </div>
+  `;
+  containerEl.appendChild(div);
+}
+
+function renderItems() {
+  const container = document.getElementById('itemsContainer');
+  const emptyState = document.getElementById('emptyState');
+  container.innerHTML = '';
+
+  let list = [];
+
+  // Filter by navigation
+  if (currentNav === 'all') {
+    list = [
+      ...state.notes.map(n => ({ type: 'note', ...n })),
+      ...state.tasks.map(t => ({ type: 'task', ...t }))
+    ];
+  } else if (currentNav === 'notes') {
+    list = state.notes.filter(n => !isSharedLinksFamilyId(n.folderId)).map(n => ({ type: 'note', ...n }));
+  } else if (currentNav === 'tasks') {
+    list = state.tasks.map(t => ({ type: 'task', ...t }));
+  } else if (currentNav === 'starred') {
+    list = [
+      ...state.notes.filter(n => n.isStarred).map(n => ({ type: 'note', ...n })),
+      ...state.tasks.filter(t => t.isStarred).map(t => ({ type: 'task', ...t }))
+    ];
+  } else if (currentNav === 'folder') {
+    if (currentFolderId === PERMA_COMPLETED_TASKS_ID) {
+      list = state.tasks.filter(t => t.isCompleted || t.folderId === PERMA_COMPLETED_TASKS_ID).map(t => ({ type: 'task', ...t }));
+    } else if (currentFolderId === PERMA_SHARED_LINKS_ID) {
+      list = state.notes.filter(n => isSharedLinksFamilyId(n.folderId)).map(n => ({ type: 'note', ...n }));
+    } else if (isSharedLinksSubfolderId(currentFolderId)) {
+      list = state.notes.filter(n => n.folderId === currentFolderId).map(n => ({ type: 'note', ...n }));
+    } else {
+      list = [
+        ...state.notes.filter(n => n.folderId === currentFolderId).map(n => ({ type: 'note', ...n })),
+        ...state.tasks.filter(t => t.folderId === currentFolderId).map(t => ({ type: 'task', ...t }))
+      ];
+    }
+  }
+
+  // Filter by Topbar filter buttons
+  if (currentTypeFilter === 'notes') {
+    list = list.filter(i => i.type === 'note' && !isSharedLinksFamilyId(i.folderId));
+  } else if (currentTypeFilter === 'tasks') {
+    list = list.filter(i => i.type === 'task');
+  } else if (currentTypeFilter === 'starred') {
+    list = list.filter(i => i.isStarred);
+  }
+
+  // Filter by Active Tag Filter
+  if (selectedTagFilter) {
+    const tq = selectedTagFilter.toLowerCase();
+    list = list.filter(i => (i.tags || '').toLowerCase().split(',').map(s => s.trim()).includes(tq));
+  }
+
+  // Filter by Search Query
+  if (currentSearch.trim()) {
+    const q = currentSearch.toLowerCase().trim();
+    list = list.filter(i => {
+      const matchTitle = (i.title || '').toLowerCase().includes(q);
+      const matchTags = (i.tags || '').toLowerCase().includes(q);
+      if (i.type === 'note') {
+        const matchContent = (i.content || '').toLowerCase().includes(q);
+        return matchTitle || matchTags || matchContent;
+      } else {
+        const matchDesc = (i.description || '').toLowerCase().includes(q);
+        const matchSub = (i.subtasks || []).some(s => (s.title || '').toLowerCase().includes(q));
+        return matchTitle || matchTags || matchDesc || matchSub;
+      }
+    });
+  }
+
+  // Sort: Starred first, then by updatedAt descending
+  list.sort((a, b) => {
+    if (a.isStarred !== b.isStarred) return a.isStarred ? -1 : 1;
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+
+  if (list.length === 0) {
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  emptyState.style.display = 'none';
+
+  // FOLDER SEPARATION: When inside a folder (or All items) and separation is enabled,
+  // distinctly partition into TASKS and NOTES sections like the Android app!
+  const isInsideFolder = currentNav === 'folder' && !isPermanentFolderId(currentFolderId);
+  const shouldSeparate = (isInsideFolder && folderSeparationMode === 'split') || (currentNav === 'all' && currentTypeFilter === 'all' && !selectedTagFilter && !currentSearch.trim());
+
+  if (shouldSeparate) {
+    const tasksPart = list.filter(i => i.type === 'task');
+    const notesPart = list.filter(i => i.type === 'note' && !isSharedLinksFamilyId(i.folderId));
+    const linksPart = list.filter(i => i.type === 'note' && isSharedLinksFamilyId(i.folderId));
+
+    // Section 1: Tasks
+    if (tasksPart.length > 0) {
+      const pendingCount = tasksPart.filter(t => !t.isCompleted).length;
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'section-divider-header';
+      headerDiv.innerHTML = `
+        <div class="section-divider-title" style="color:var(--success);">
+          <span>✅ TASKS</span>
+          <span style="font-size:0.75rem; opacity:0.8;">(${pendingCount} pending, ${tasksPart.length} total)</span>
+        </div>
+        <button class="btn btn-success" style="font-size:0.75rem; padding:4px 10px;" onclick="openCreateTaskModal()">+ Add Task</button>
+      `;
+      container.appendChild(headerDiv);
+
+      tasksPart.forEach(t => container.appendChild(createTaskCard(t)));
+    }
+
+    // Section 2: Notes (strictly regular notes, excluding shared links)
+    if (notesPart.length > 0) {
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'section-divider-header';
+      headerDiv.innerHTML = `
+        <div class="section-divider-title" style="color:var(--primary);">
+          <span>📝 NOTES</span>
+          <span style="font-size:0.75rem; opacity:0.8;">(${notesPart.length} items)</span>
+        </div>
+        <button class="btn btn-primary" style="font-size:0.75rem; padding:4px 10px;" onclick="openCreateNoteModal()">+ Add Note</button>
+      `;
+      container.appendChild(headerDiv);
+
+      notesPart.forEach(n => container.appendChild(createNoteCard(n)));
+    }
+
+    // Section 3: Shared Links (strictly separate from regular notes)
+    if (linksPart.length > 0) {
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'section-divider-header';
+      headerDiv.innerHTML = `
+        <div class="section-divider-title" style="color:var(--text-primary);">
+          <span>🔗 SHARED LINKS</span>
+          <span style="font-size:0.75rem; opacity:0.8;">(${linksPart.length} items)</span>
+        </div>
+        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px;" onclick="openAddLinkModal()">+ Add Link</button>
+      `;
+      container.appendChild(headerDiv);
+
+      linksPart.forEach(n => container.appendChild(createNoteCard(n)));
+    }
+  } else {
+    // Normal unified view
+    list.forEach(item => {
+      if (item.type === 'note') {
+        container.appendChild(createNoteCard(item));
+      } else {
+        container.appendChild(createTaskCard(item));
+      }
+    });
+  }
+}
+
+function renderInteractiveNoteMarkdown(note) {
+  const raw = note.content || '';
+  if (!raw.trim()) return '';
+  const lines = raw.split('\n');
+  const encodedTitle = encodeArg(note.title || '');
+  const createdAt = note.createdAt || 0;
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+    const checkMatch = trimmed.match(/^(?:[-*•]\s*)?\[([ xX]?)\]\s*(.*)$/);
+    if (checkMatch) {
+      const isChecked = checkMatch[1].toLowerCase() === 'x';
+      const itemText = escapeHtml(checkMatch[2] || '');
+      return `
+        <label style="display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none;">
+          <input type="checkbox" ${isChecked ? 'checked' : ''}
+            onchange="toggleNoteChecklistLine(decodeArg('${encodedTitle}'), ${createdAt}, ${idx}, this.checked)"
+            style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer;" />
+          <span style="${isChecked ? 'text-decoration:line-through; color:var(--text-muted);' : 'color:var(--text-main);'}">${itemText}</span>
+        </label>
+      `;
+    }
+    if (trimmed.startsWith('# ')) {
+      return `<div style="font-weight:700; font-size:1rem; color:var(--text-main); margin-top:4px;">${escapeHtml(trimmed.slice(2))}</div>`;
+    }
+    if (trimmed.startsWith('## ')) {
+      return `<div style="font-weight:700; font-size:0.92rem; color:var(--text-main); margin-top:3px;">${escapeHtml(trimmed.slice(3))}</div>`;
+    }
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
+      return `<div style="display:flex; gap:6px; padding:1px 0;"><span>•</span><span>${linkify(escapeHtml(trimmed.slice(2)))}</span></div>`;
+    }
+    return `<div>${linkify(escapeHtml(line))}</div>`;
+  }).join('');
+}
+
+function toggleNoteChecklistLine(title, createdAt, lineIdx, isChecked) {
+  const note = state.notes.find(n => n.title === title && n.createdAt === createdAt) || state.notes.find(n => n.createdAt === createdAt);
+  if (!note || !note.content) return;
+  const lines = note.content.split('\n');
+  if (lineIdx < 0 || lineIdx >= lines.length) return;
+  const trimmed = lines[lineIdx].trim();
+  const checkMatch = trimmed.match(/^(?:[-*•]\s*)?\[([ xX]?)\]\s*(.*)$/);
+  if (checkMatch) {
+    const itemText = checkMatch[2] || '';
+    lines[lineIdx] = isChecked ? `- [x] ${itemText}` : `- [ ] ${itemText}`;
+    note.content = lines.join('\n');
+    note.updatedAt = Date.now();
+    saveLocalState();
+    renderItems();
+    triggerAutoCloudSync();
+  }
+}
+
+function createNoteCard(note) {
+  const card = document.createElement('div');
+  card.className = `card color-${note.colorIndex || 0}`;
+
+  const tagsArr = (note.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  const folderName = getFolderName(note.folderId);
+  const isSharedLink = isSharedLinksFamilyId(note.folderId);
+  const permaSub = getPermanentSubfolderById(note.folderId);
+  const encodedNoteTitle = encodeArg(note.title || '');
+  const noteCreatedAt = Number(note.createdAt) || 0;
+
+  // Rich images: extract from imageUris property or first URL image in content
+  let displayImg = note.imageUris || '';
+  if (!displayImg && note.content) {
+    const imgMatch = note.content.match(/(https?:\/\/[^\s]+?\.(?:png|jpg|jpeg|gif|webp|svg))/i);
+    if (imgMatch) displayImg = imgMatch[1];
+  }
+
+  const cleanTitle = (note.title || 'Untitled Note').replace(/^(\s*(?:[-*•]\s*\[[ xX]?\]\s*|\[[ xX]?\]\s*|#{1,6}\s+))+/, '').trim() || (note.title || 'Untitled Note');
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex; align-items:center; gap:6px; flex:1;">
+        ${isSharedLink ? `<span class="link-badge">🔗 ${permaSub ? escapeHtml(permaSub.name) : 'Shared Link'}</span>` : ''}
+        <div class="card-title">${escapeHtml(cleanTitle)}</div>
+      </div>
+      <div class="card-actions-row">
+        <button class="btn-icon" onclick="toggleStarNote(decodeArg('${encodedNoteTitle}'), ${noteCreatedAt})" title="Star note">
+          ${note.isStarred ? '★' : '☆'}
+        </button>
+        <button class="btn-icon" onclick="openEditNoteModal(decodeArg('${encodedNoteTitle}'), ${noteCreatedAt})" title="Edit">
+          ✏️
+        </button>
+        <button class="btn-icon" onclick="deleteNote(decodeArg('${encodedNoteTitle}'), ${noteCreatedAt})" title="Delete">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    ${displayImg ? `
+      <img src="${escapeHtml(displayImg)}" class="card-preview-image" alt="Link Image" 
+        onerror="this.style.display='none'" loading="lazy" />
+    ` : ''}
+
+    <div class="card-content-preview">${renderInteractiveNoteMarkdown(note)}</div>
+
+    <div class="card-meta">
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        ${folderName ? `<span class="folder-chip">📁 ${escapeHtml(folderName)}</span>` : ''}
+        ${tagsArr.map(t => `<span class="tag-badge" style="cursor:pointer;" onclick="filterByTag(decodeArg('${encodeArg(t)}'))">#${escapeHtml(t)}</span>`).join('')}
+      </div>
+      <span>${formatDate(note.updatedAt || note.createdAt)}</span>
+    </div>
+  `;
+  return card;
+}
+
+function createTaskCard(task) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const isDone = !!task.isCompleted;
+  const folderName = getFolderName(task.folderId);
+  const tagsArr = (task.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  const encodedTaskTitle = encodeArg(task.title || '');
+  const taskCreatedAt = Number(task.createdAt) || 0;
+
+  let priorityClass = 'priority-low';
+  let priorityLabel = 'Low';
+  if (task.priority === 3) {
+    priorityClass = 'priority-high';
+    priorityLabel = 'High';
+  } else if (task.priority === 2) {
+    priorityClass = 'priority-medium';
+    priorityLabel = 'Medium';
+  }
+
+  const subtasks = task.subtasks || [];
+  const completedSubs = subtasks.filter(s => s.isCompleted).length;
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="task-checkbox-row" style="flex:1;">
+        <input type="checkbox" class="custom-checkbox" ${isDone ? 'checked' : ''} 
+          onchange="toggleTaskComplete(decodeArg('${encodedTaskTitle}'), ${taskCreatedAt}, this.checked)">
+        <div style="flex:1;">
+          <div class="card-title ${isDone ? 'completed' : ''}">${escapeHtml(task.title || 'Untitled Task')}</div>
+          ${task.description ? `<div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">${escapeHtml(task.description)}</div>` : ''}
+        </div>
+      </div>
+      <div class="card-actions-row">
+        <button class="btn-icon" onclick="toggleStarTask(decodeArg('${encodedTaskTitle}'), ${taskCreatedAt})">
+          ${task.isStarred ? '⭐' : '☆'}
+        </button>
+        <button class="btn-icon" onclick="openEditTaskModal(decodeArg('${encodedTaskTitle}'), ${taskCreatedAt})">
+          ✏️
+        </button>
+        <button class="btn-icon" onclick="deleteTask(decodeArg('${encodedTaskTitle}'), ${taskCreatedAt})">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <!-- Subtasks checklist -->
+    ${subtasks.length > 0 ? `
+      <div class="subtasks-box">
+        <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px;">
+          Subtasks (${completedSubs}/${subtasks.length})
+        </div>
+        ${subtasks.map((s, idx) => `
+          <div class="subtask-item ${s.isCompleted ? 'completed' : ''}">
+            <input type="checkbox" ${s.isCompleted ? 'checked' : ''} 
+              onchange="toggleSubtask(decodeArg('${encodedTaskTitle}'), ${taskCreatedAt}, ${idx}, this.checked)">
+            <span>${escapeHtml(s.title)}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <div class="card-meta">
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <span class="priority-badge ${priorityClass}">${priorityLabel}</span>
+        ${folderName ? `<span class="folder-chip">📁 ${escapeHtml(folderName)}</span>` : ''}
+        ${task.dueDate ? `<span style="color:var(--warning);">📅 ${formatDate(task.dueDate)}</span>` : ''}
+        ${tagsArr.map(t => `<span class="tag-badge">#${escapeHtml(t)}</span>`).join('')}
+      </div>
+      <span>${formatDate(task.updatedAt || task.createdAt)}</span>
+    </div>
+  `;
+  return card;
+}
+
+function getFolderName(folderId) {
+  if (folderId === PERMA_COMPLETED_TASKS_ID) return 'Completed Tasks';
+  if (folderId === PERMA_SHARED_LINKS_ID) return 'Shared Links';
+  const permaSub = getPermanentSubfolderById(folderId);
+  if (permaSub) return `Shared Links / ${permaSub.name}`;
+  const found = state.folders.find(f => f.id === folderId);
+  return found ? found.name : null;
+}
+
+// ================= NOTE ACTIONS =================
+
+function openCreateNoteModal() {
+  editingNoteId = null;
+  document.getElementById('noteModalTitle').textContent = 'Create Note';
+  document.getElementById('noteInputTitle').value = '';
+  document.getElementById('noteInputContent').value = '';
+  document.getElementById('noteInputTags').value = '';
+  populateFolderDropdown('noteSelectFolder');
+  document.getElementById('noteSelectFolder').value = (currentNav === 'folder' && currentFolderId !== PERMA_COMPLETED_TASKS_ID) ? currentFolderId : '';
+  selectNoteColor(0);
+  openModal('noteModal');
+}
+
+function openEditNoteModal(title, createdAt) {
+  const note = state.notes.find(n => n.title === title && n.createdAt === createdAt);
+  if (!note) return;
+  editingNoteId = { title, createdAt };
+  document.getElementById('noteModalTitle').textContent = 'Edit Note';
+  document.getElementById('noteInputTitle').value = note.title;
+  document.getElementById('noteInputContent').value = note.content;
+  document.getElementById('noteInputTags').value = note.tags || '';
+  populateFolderDropdown('noteSelectFolder');
+  document.getElementById('noteSelectFolder').value = note.folderId !== null ? note.folderId : '';
+  selectNoteColor(note.colorIndex || 0);
+  openModal('noteModal');
+}
+
+function saveNote() {
+  const title = document.getElementById('noteInputTitle').value.trim() || 'Untitled Note';
+  const content = document.getElementById('noteInputContent').value.trim();
+  const tags = document.getElementById('noteInputTags').value.trim();
+  const folderVal = document.getElementById('noteSelectFolder').value;
+  const folderId = folderVal !== '' ? parseInt(folderVal, 10) : null;
+  const now = Date.now();
+
+  if (editingNoteId) {
+    const idx = state.notes.findIndex(n => n.title === editingNoteId.title && n.createdAt === editingNoteId.createdAt);
+    if (idx !== -1) {
+      state.notes[idx] = {
+        ...state.notes[idx],
+        title,
+        content,
+        tags,
+        folderId,
+        colorIndex: selectedNoteColor,
+        updatedAt: now
+      };
+    }
+  } else {
+    state.notes.push({
+      title,
+      content,
+      tags,
+      imageUris: "",
+      isStarred: false,
+      colorIndex: selectedNoteColor,
+      folderId,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  saveLocalState();
+  renderItems();
+  closeModal('noteModal');
+  showToast('Note saved ✓');
+  triggerAutoCloudSync();
+}
+
+function deleteNote(title, createdAt) {
+  if (!confirm('Are you sure you want to delete this note?')) return;
+  const targets = state.notes.filter(n => n.title === title && (Number(n.createdAt) || 0) === (Number(createdAt) || 0));
+  targets.forEach(n => recordTombstone('NOTE', n.title, n.createdAt, n.updatedAt));
+  if (targets.length === 0) {
+    recordTombstone('NOTE', title, createdAt, Date.now());
+  }
+  state.notes = state.notes.filter(n => !(n.title === title && (Number(n.createdAt) || 0) === (Number(createdAt) || 0)));
+  saveLocalState();
+  renderItems();
+  showToast('Note deleted');
+  triggerAutoCloudSync();
+}
+
+function toggleStarNote(title, createdAt) {
+  const note = state.notes.find(n => n.title === title && n.createdAt === createdAt);
+  if (note) {
+    note.isStarred = !note.isStarred;
+    note.updatedAt = Date.now();
+    saveLocalState();
+    renderItems();
+    triggerAutoCloudSync();
+  }
+}
+
+function selectNoteColor(index, el) {
+  selectedNoteColor = index;
+  const swatches = document.querySelectorAll('#noteColorPicker .color-swatch');
+  swatches.forEach((s, idx) => {
+    s.classList.toggle('active', idx === index);
+  });
+}
+
+// ================= TASK ACTIONS =================
+
+function openCreateTaskModal() {
+  editingTaskId = null;
+  draftSubtasks = [];
+  document.getElementById('taskModalTitle').textContent = 'Create Task';
+  document.getElementById('taskInputTitle').value = '';
+  document.getElementById('taskInputDescription').value = '';
+  document.getElementById('taskInputTags').value = '';
+  document.getElementById('taskInputDueDate').value = '';
+  document.getElementById('taskSelectPriority').value = '2';
+  populateFolderDropdown('taskSelectFolder');
+  document.getElementById('taskSelectFolder').value = (currentNav === 'folder' && currentFolderId !== PERMA_SHARED_LINKS_ID) ? currentFolderId : '';
+  renderDraftSubtasks();
+  openModal('taskModal');
+}
+
+function openEditTaskModal(title, createdAt) {
+  const task = state.tasks.find(t => t.title === title && t.createdAt === createdAt);
+  if (!task) return;
+  editingTaskId = { title, createdAt };
+  draftSubtasks = JSON.parse(JSON.stringify(task.subtasks || []));
+  document.getElementById('taskModalTitle').textContent = 'Edit Task';
+  document.getElementById('taskInputTitle').value = task.title;
+  document.getElementById('taskInputDescription').value = task.description || '';
+  document.getElementById('taskInputTags').value = task.tags || '';
+  document.getElementById('taskSelectPriority').value = task.priority || 2;
+  populateFolderDropdown('taskSelectFolder');
+  document.getElementById('taskSelectFolder').value = task.folderId !== null ? task.folderId : '';
+  if (task.dueDate) {
+    const d = new Date(task.dueDate);
+    document.getElementById('taskInputDueDate').value = d.toISOString().slice(0, 16);
+  } else {
+    document.getElementById('taskInputDueDate').value = '';
+  }
+  renderDraftSubtasks();
+  openModal('taskModal');
+}
+
+function saveTask() {
+  const title = document.getElementById('taskInputTitle').value.trim() || 'Untitled Task';
+  const description = document.getElementById('taskInputDescription').value.trim();
+  const priority = parseInt(document.getElementById('taskSelectPriority').value, 10);
+  const folderVal = document.getElementById('taskSelectFolder').value;
+  const folderId = folderVal !== '' ? parseInt(folderVal, 10) : null;
+  const tags = document.getElementById('taskInputTags').value.trim();
+  const dueVal = document.getElementById('taskInputDueDate').value;
+  const dueDate = dueVal ? new Date(dueVal).getTime() : null;
+  const now = Date.now();
+
+  if (editingTaskId) {
+    const idx = state.tasks.findIndex(t => t.title === editingTaskId.title && t.createdAt === editingTaskId.createdAt);
+    if (idx !== -1) {
+      state.tasks[idx] = {
+        ...state.tasks[idx],
+        title,
+        description,
+        priority,
+        folderId,
+        tags,
+        dueDate,
+        subtasks: draftSubtasks,
+        updatedAt: now
+      };
+    }
+  } else {
+    state.tasks.push({
+      title,
+      description,
+      isCompleted: false,
+      isStarred: false,
+      dueDate,
+      reminderTime: null,
+      reminderEnabled: false,
+      priority,
+      tags,
+      folderId,
+      createdAt: now,
+      updatedAt: now,
+      subtasks: draftSubtasks
+    });
+  }
+
+  saveLocalState();
+  renderItems();
+  closeModal('taskModal');
+  showToast('Task saved ✓');
+  triggerAutoCloudSync();
+}
+
+function toggleTaskComplete(title, createdAt, isCompleted) {
+  const task = state.tasks.find(t => t.title === title && t.createdAt === createdAt);
+  if (task) {
+    task.isCompleted = isCompleted;
+    task.updatedAt = Date.now();
+    // If completed and no folder, or moving to completed folder
+    if (isCompleted && (!task.folderId || task.folderId === null)) {
+      task.folderId = PERMA_COMPLETED_TASKS_ID;
+    } else if (!isCompleted && task.folderId === PERMA_COMPLETED_TASKS_ID) {
+      task.folderId = null;
+    }
+    saveLocalState();
+    renderItems();
+    triggerAutoCloudSync();
+  }
+}
+
+function toggleSubtask(taskTitle, taskCreatedAt, subtaskIndex, isCompleted) {
+  const task = state.tasks.find(t => t.title === taskTitle && t.createdAt === taskCreatedAt);
+  if (task && task.subtasks && task.subtasks[subtaskIndex]) {
+    task.subtasks[subtaskIndex].isCompleted = isCompleted;
+    task.updatedAt = Date.now();
+    saveLocalState();
+    renderItems();
+    triggerAutoCloudSync();
+  }
+}
+
+function toggleStarTask(title, createdAt) {
+  const task = state.tasks.find(t => t.title === title && t.createdAt === createdAt);
+  if (task) {
+    task.isStarred = !task.isStarred;
+    task.updatedAt = Date.now();
+    saveLocalState();
+    renderItems();
+    triggerAutoCloudSync();
+  }
+}
+
+function deleteTask(title, createdAt) {
+  if (!confirm('Are you sure you want to delete this task?')) return;
+  const targets = state.tasks.filter(t => t.title === title && (Number(t.createdAt) || 0) === (Number(createdAt) || 0));
+  targets.forEach(t => recordTombstone('TASK', t.title, t.createdAt, t.updatedAt));
+  if (targets.length === 0) {
+    recordTombstone('TASK', title, createdAt, Date.now());
+  }
+  state.tasks = state.tasks.filter(t => !(t.title === title && (Number(t.createdAt) || 0) === (Number(createdAt) || 0)));
+  saveLocalState();
+  renderItems();
+  showToast('Task deleted');
+  triggerAutoCloudSync();
+}
+
+function addDraftSubtask() {
+  const input = document.getElementById('subtaskDraftInput');
+  const val = input.value.trim();
+  if (!val) return;
+  draftSubtasks.push({
+    title: val,
+    isCompleted: false,
+    orderIndex: draftSubtasks.length
+  });
+  input.value = '';
+  renderDraftSubtasks();
+}
+
+function renderDraftSubtasks() {
+  const container = document.getElementById('modalSubtasksList');
+  container.innerHTML = '';
+  if (draftSubtasks.length === 0) {
+    container.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted);">No subtasks added yet</span>';
+    return;
+  }
+  draftSubtasks.forEach((st, idx) => {
+    const div = document.createElement('div');
+    div.className = 'subtask-item';
+    div.innerHTML = `
+      <span>• ${escapeHtml(st.title)}</span>
+      <span onclick="removeDraftSubtask(${idx})" style="margin-left:auto; cursor:pointer; color:var(--danger); font-size:0.8rem;">✕</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function removeDraftSubtask(idx) {
+  draftSubtasks.splice(idx, 1);
+  renderDraftSubtasks();
+}
+
+// Helper for Markdown Toolbar
+function insertNoteMarkdown(prefix, suffix) {
+  const textarea = document.getElementById('noteInputContent');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selText = textarea.value.substring(start, end);
+  const replacement = prefix + (selText || (prefix === '### ' ? 'Heading' : 'text')) + suffix;
+  textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+  textarea.focus();
+  textarea.selectionStart = start + prefix.length;
+  textarea.selectionEnd = start + replacement.length - suffix.length;
+}
+
+function appendTagToInput(inputId, tag) {
+  const input = document.getElementById(inputId);
+  const current = input.value.trim();
+  const cleanTag = tag.trim().replace(/^#/, '');
+  if (!current) {
+    input.value = cleanTag;
+  } else {
+    const tags = current.split(',').map(t => t.trim());
+    if (!tags.includes(cleanTag)) {
+      input.value = current + ', ' + cleanTag;
+    }
+  }
+}
+
+function openCreateSubfolderFromCurrent() {
+  if (currentNav === 'folder' && currentFolderId !== null && currentFolderId !== PERMA_COMPLETED_TASKS_ID && currentFolderId !== PERMA_SHARED_LINKS_ID) {
+    openCreateFolderModal(currentFolderId);
+  } else {
+    openCreateFolderModal(null);
+  }
+}
+
+// ================= FOLDERS =================
+
+function populateFolderDropdown(selectId) {
+  const select = document.getElementById(selectId);
+  select.innerHTML = '<option value="">No Folder (Root)</option>';
+  
+  if (selectId === 'noteSelectFolder') {
+    select.innerHTML += '<option value="-998">📁 Shared Links (Permanent)</option>';
+    PERMANENT_SHARED_SUBFOLDERS.forEach(sub => {
+      select.innerHTML += `<option value="${sub.id}">　↳ 🔗 ${escapeHtml(sub.name)}</option>`;
+    });
+  } else {
+    select.innerHTML += '<option value="-999">📁 Completed Tasks (Permanent)</option>';
+  }
+
+  // Display hierarchy with indent in select dropdowns
+  const rootFolders = state.folders.filter(f => 
+    !isPermanentFolderId(f.id) && 
+    (!f.parentFolderId || f.parentFolderId === null)
+  );
+
+  rootFolders.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = `📁 ${f.name}`;
+    select.appendChild(opt);
+
+    // Subfolders
+    const subfolders = state.folders.filter(s => s.parentFolderId === f.id);
+    subfolders.forEach(sub => {
+      const subOpt = document.createElement('option');
+      subOpt.value = sub.id;
+      subOpt.textContent = `　↳ 📁 ${sub.name}`;
+      select.appendChild(subOpt);
+    });
+  });
+}
+
+function openCreateFolderModal(parentFolderId = null) {
+  document.getElementById('folderInputName').value = '';
+  
+  // Populate parent folder dropdown
+  const parentSelect = document.getElementById('folderSelectParent');
+  parentSelect.innerHTML = '<option value="">None (Top-Level Root Folder)</option>';
+  
+  state.folders.forEach(f => {
+    if (f.id === PERMA_COMPLETED_TASKS_ID || f.id === PERMA_SHARED_LINKS_ID) return;
+    if (f.parentFolderId && f.parentFolderId !== null) return; // Prevent 3+ level depth
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = `📁 ${f.name}`;
+    parentSelect.appendChild(opt);
+  });
+
+  if (parentFolderId !== null) {
+    parentSelect.value = parentFolderId;
+    document.getElementById('folderModalTitle').textContent = 'Create Subfolder';
+  } else {
+    parentSelect.value = '';
+    document.getElementById('folderModalTitle').textContent = 'Create Folder';
+  }
+
+  openModal('folderModal');
+}
+
+function saveFolder() {
+  const name = document.getElementById('folderInputName').value.trim();
+  if (!name) return;
+  const parentVal = document.getElementById('folderSelectParent').value;
+  const parentFolderId = parentVal !== '' ? parseInt(parentVal, 10) : null;
+  const newId = Date.now();
+
+  clearTombstoneFor('FOLDER', name);
+
+  state.folders.push({
+    id: newId,
+    name,
+    parentFolderId: parentFolderId,
+    colorIndex: 0,
+    createdAt: Date.now()
+  });
+
+  saveLocalState();
+  renderNavigation();
+  closeModal('folderModal');
+  showToast(parentFolderId ? 'Subfolder created ✓' : 'Folder created ✓');
+  triggerAutoCloudSync();
+}
+
+function deleteFolder(id) {
+  if (!confirm('Delete this folder? Items inside will remain in root view.')) return;
+  
+  // Also remove child subfolders and record tombstones so deleted folders never come back on sync
+  const foldersToRemove = state.folders.filter(f => (f.id === id || f.parentFolderId === id) && !isPermanentFolderId(f.id));
+  foldersToRemove.forEach(f => recordTombstone('FOLDER', f.name, f.createdAt, f.createdAt));
+  const allIdsToRemove = foldersToRemove.map(f => f.id);
+
+  state.folders = state.folders.filter(f => !allIdsToRemove.includes(f.id));
+  
+  // Unassign from notes and tasks
+  const now = Date.now();
+  state.notes.forEach(n => {
+    if (allIdsToRemove.includes(n.folderId)) {
+      n.folderId = null;
+      n.updatedAt = now;
+    }
+  });
+  state.tasks.forEach(t => {
+    if (allIdsToRemove.includes(t.folderId)) {
+      t.folderId = null;
+      t.updatedAt = now;
+    }
+  });
+  
+  if (currentNav === 'folder' && allIdsToRemove.includes(currentFolderId)) {
+    setNavView('all');
+  } else {
+    saveLocalState();
+    renderNavigation();
+    renderItems();
+  }
+  showToast('Folder removed');
+  triggerAutoCloudSync();
+}
+
+// ================= NAVIGATION & SEARCH =================
+
+function setNavView(nav, folderId = null) {
+  currentNav = nav;
+  currentFolderId = folderId;
+
+  // Toggle Add Subfolder button in topbar if currently inside a custom folder
+  const btnSub = document.getElementById('btnTopAddSubfolder');
+  if (btnSub) {
+    if (nav === 'folder' && folderId !== null && !isPermanentFolderId(folderId)) {
+      btnSub.style.display = 'inline-flex';
+    } else {
+      btnSub.style.display = 'none';
+    }
+  }
+
+  // Update title
+  const titleEl = document.getElementById('pageTitleText');
+  if (nav === 'all') titleEl.innerHTML = '📑 All Items';
+  else if (nav === 'notes') titleEl.innerHTML = '📝 Notes';
+  else if (nav === 'tasks') titleEl.innerHTML = '✅ Tasks';
+  else if (nav === 'starred') titleEl.innerHTML = '⭐ Starred Items';
+  else if (nav === 'folder') {
+    if (folderId === PERMA_COMPLETED_TASKS_ID) {
+      titleEl.innerHTML = '<span class="perma-folder-badge folder-completed-dot"></span> Completed Tasks';
+    } else if (folderId === PERMA_SHARED_LINKS_ID) {
+      titleEl.innerHTML = '<span class="perma-folder-badge folder-links-dot"></span> Shared Links';
+    } else if (isSharedLinksSubfolderId(folderId)) {
+      const sub = getPermanentSubfolderById(folderId);
+      titleEl.innerHTML = `<span style="opacity:0.75; cursor:pointer;" onclick="setNavView('folder', ${PERMA_SHARED_LINKS_ID})">🔗 Shared Links</span> / 📂 ${escapeHtml(sub ? sub.name : 'Subfolder')}`;
+    } else {
+      const f = state.folders.find(x => x.id === folderId);
+      const isSub = f && f.parentFolderId && f.parentFolderId !== null;
+      const parent = isSub ? state.folders.find(p => p.id === f.parentFolderId) : null;
+      if (parent) {
+        titleEl.innerHTML = `<span style="opacity:0.6; cursor:pointer;" onclick="setNavView('folder', ${parent.id})">📁 ${escapeHtml(parent.name)}</span> / 📁 ${escapeHtml(f.name)}`;
+      } else {
+        titleEl.innerHTML = `📁 ${f ? escapeHtml(f.name) : 'Folder'}`;
+      }
+    }
+  }
+
+  // Toggle folder separation control when inside a custom folder
+  const sepControl = document.getElementById('folderViewSeparationControl');
+  if (sepControl) {
+    if (nav === 'folder' && !isPermanentFolderId(folderId)) {
+      sepControl.style.display = 'inline-flex';
+    } else {
+      sepControl.style.display = 'none';
+    }
+  }
+
+  // Update active sidebar buttons
+  document.querySelectorAll('.sidebar .nav-item').forEach(b => b.classList.remove('active'));
+  renderNavigation();
+  renderItems();
+
+  // Close mobile sidebar if open
+  document.getElementById('appSidebar').classList.remove('open');
+}
+
+// ================= CUSTOM TAGS MANAGEMENT =================
+
+function openCreateTagModal() {
+  document.getElementById('tagInputName').value = '';
+  selectedTagColorIndex = 0;
+  const swatches = document.querySelectorAll('#tagColorPicker .color-swatch');
+  swatches.forEach((s, idx) => s.classList.toggle('active', idx === 0));
+  openModal('tagModal');
+}
+
+function selectTagColor(index, el) {
+  selectedTagColorIndex = index;
+  const swatches = document.querySelectorAll('#tagColorPicker .color-swatch');
+  swatches.forEach((s, idx) => s.classList.toggle('active', idx === index));
+}
+
+function saveCustomTag() {
+  const name = document.getElementById('tagInputName').value.trim().toLowerCase().replace(/^#/, '');
+  if (!name) return;
+  if (!Array.isArray(state.customTags)) state.customTags = [];
+
+  clearTombstoneFor('TAG', name);
+
+  const existingIdx = state.customTags.findIndex(t => t.name.toLowerCase() === name);
+  if (existingIdx !== -1) {
+    state.customTags[existingIdx].colorIndex = selectedTagColorIndex;
+  } else {
+    state.customTags.push({
+      name: name,
+      colorIndex: selectedTagColorIndex,
+      createdAt: Date.now()
+    });
+  }
+
+  saveLocalState();
+  renderNavigation();
+  closeModal('tagModal');
+  showToast(`Tag #${name} saved ✓`);
+  triggerAutoCloudSync();
+}
+
+function deleteCustomTag(name) {
+  if (!confirm(`Delete tag #${name}? (Items will keep the text)`)) return;
+  const clean = String(name || '').trim().replace(/^#/, '').toLowerCase();
+  const existing = (state.customTags || []).find(t => t.name.toLowerCase() === clean);
+  recordTombstone('TAG', clean, existing ? (existing.createdAt || 0) : 0, existing ? (existing.createdAt || 0) : 0);
+  state.customTags = (state.customTags || []).filter(t => t.name.toLowerCase() !== clean);
+  if (selectedTagFilter === clean) {
+    selectedTagFilter = null;
+  }
+  saveLocalState();
+  renderNavigation();
+  renderItems();
+  showToast(`Tag removed`);
+  triggerAutoCloudSync();
+}
+
+// ================= +LINKS, 14 PLATFORM METADATA EXTRACTOR & 1-TAP TAG AUTO-SAVE =================
+
+let _metaDebounceTimer = null;
+
+function resolvePlatformSubfolderWeb(url, rawText = '') {
+  const lowerUrl = (url || '').toLowerCase().trim();
+  const lowerText = (rawText || '').toLowerCase();
+  const host = extractDomain(lowerUrl);
+
+  if (host.includes('youtube.com') || host.includes('youtu.be') || host.includes('youtube-nocookie.com')) {
+    return getPermanentSubfolderById(-901);
+  }
+  if (host.includes('tiktok.com') || host.includes('tiktokv.com')) {
+    return getPermanentSubfolderById(-905);
+  }
+  if (host.includes('twitch.tv') || host.includes('twitch.com')) {
+    return getPermanentSubfolderById(-906);
+  }
+  if (host.includes('threads.net') || host.includes('threads.com')) {
+    return getPermanentSubfolderById(-910);
+  }
+  if (host.includes('instagram.com') || host.includes('instagr.am')) {
+    return getPermanentSubfolderById(-908);
+  }
+  if (host.includes('facebook.com') || host.includes('fb.watch') || host.includes('fb.com') || host.includes('fb.gg')) {
+    return getPermanentSubfolderById(-907);
+  }
+  if (host === 'x.com' || host.endsWith('.x.com') || host.includes('twitter.com') || host === 't.co' || host.includes('vxtwitter.com') || host.includes('fxtwitter.com')) {
+    return getPermanentSubfolderById(-909);
+  }
+  if (host.includes('pinterest.') || host.includes('pin.it') || host.includes('pinimg.com')) {
+    return getPermanentSubfolderById(-911);
+  }
+  if (host.includes('snapchat.com') || host.includes('snap.com')) {
+    return getPermanentSubfolderById(-912);
+  }
+  if (host.includes('reddit.com') || host.includes('redd.it') || host.includes('redditmedia.com')) {
+    return getPermanentSubfolderById(-913);
+  }
+  if (host.includes('discord.com') || host.includes('discord.gg') || host.includes('discordapp.com')) {
+    return getPermanentSubfolderById(-914);
+  }
+  const pornKeywords = [
+    'pornhub', 'xvideos', 'xnxx', 'xhamster', 'redtube', 'youporn',
+    'spankbang', 'eporner', 'tube8', 'brazzers', 'onlyfans', 'fansly',
+    'chaturbate', 'stripchat', 'rule34', 'nhentai', 'hanime', 'jav',
+    'erome', 'redgifs', 'motherless', 'txxx', 'beeg', 'hqporner', 'porn'
+  ];
+  if (pornKeywords.some(k => host.includes(k) || lowerUrl.includes(k))) {
+    return getPermanentSubfolderById(-904);
+  }
+  if (host.includes('mozilla.org') || host.includes('firefox.com') || lowerText.includes('firefox')) {
+    return getPermanentSubfolderById(-902);
+  }
+  if (host.includes('chrome.google.com') || host.includes('chromewebstore.google.com')) {
+    return getPermanentSubfolderById(-903);
+  }
+  const ua = (navigator.userAgent || '').toLowerCase();
+  if (ua.includes('firefox')) return getPermanentSubfolderById(-902);
+  return getPermanentSubfolderById(-903);
+}
+
+function populateLinkSubfolderDropdown(selectedSubfolderId = -903) {
+  const select = document.getElementById('linkSelectSubfolder');
+  if (!select) return;
+  select.innerHTML = '';
+  PERMANENT_SHARED_SUBFOLDERS.forEach(sub => {
+    const opt = document.createElement('option');
+    opt.value = sub.id;
+    opt.textContent = `📂 Shared Links / ${sub.name}`;
+    select.appendChild(opt);
+  });
+  const rootOpt = document.createElement('option');
+  rootOpt.value = PERMA_SHARED_LINKS_ID;
+  rootOpt.textContent = '📁 Shared Links (Root)';
+  select.appendChild(rootOpt);
+  select.value = selectedSubfolderId;
+}
+
+function renderLinkQuickAutoSaveTags(extraTags = []) {
+  const row = document.getElementById('linkQuickAutoSaveTagsRow');
+  if (!row) return;
+  row.innerHTML = '';
+
+  const searchInput = document.getElementById('linkTagSearchInput');
+  const query = searchInput ? searchInput.value.trim().toLowerCase().replace(/^#/, '') : '';
+
+  const tagSet = new Set();
+  (state.customTags || []).forEach(t => tagSet.add(t.name.toLowerCase().trim()));
+  extraTags.forEach(t => tagSet.add(t.toLowerCase().trim()));
+  state.notes.forEach(n => {
+    (n.tags || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(x => tagSet.add(x));
+  });
+  state.tasks.forEach(t => {
+    (t.tags || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(x => tagSet.add(x));
+  });
+  ['links', 'video', 'social', 'inspiration', 'reading', 'watch-later', 'work', 'personal'].forEach(t => tagSet.add(t));
+
+  let tagsList = Array.from(tagSet).filter(Boolean);
+  if (query) {
+    tagsList = tagsList.filter(t => t.includes(query));
+  }
+
+  tagsList.forEach(tagName => {
+    const chip = document.createElement('span');
+    chip.className = 'quick-tag-chip';
+    chip.style.fontWeight = '700';
+    chip.style.padding = '4px 10px';
+    chip.textContent = `#${tagName}`;
+    chip.onclick = () => selectQuickLinkTagAndMaybeAutoSave(tagName);
+    row.appendChild(chip);
+  });
+
+  if (query && !tagSet.has(query)) {
+    const createChip = document.createElement('span');
+    createChip.className = 'quick-tag-chip';
+    createChip.style.fontWeight = '700';
+    createChip.style.padding = '4px 10px';
+    createChip.style.borderColor = 'var(--text-primary)';
+    createChip.textContent = `+ Create & Save #${query}`;
+    createChip.onclick = () => selectQuickLinkTagAndMaybeAutoSave(query);
+    row.appendChild(createChip);
+  }
+}
+
+function selectQuickLinkTagAndMaybeAutoSave(tagName) {
+  appendTagToInput('linkInputTags', tagName);
+  const autoSaveChk = document.getElementById('chkOneTapTagAutoSave');
+  const urlVal = document.getElementById('linkInputUrl').value.trim();
+  if (autoSaveChk && autoSaveChk.checked && urlVal) {
+    saveLinkToSharedLinks(tagName);
+  }
+}
+
+function openAddLinkModal(prefillUrl = '', prefillTitle = '') {
+  document.getElementById('linkInputUrl').value = prefillUrl;
+  document.getElementById('linkInputTitle').value = prefillTitle;
+  document.getElementById('linkInputDescription').value = '';
+  document.getElementById('linkInputImage').value = '';
+  document.getElementById('linkInputTags').value = 'links';
+  const searchInput = document.getElementById('linkTagSearchInput');
+  if (searchInput) searchInput.value = '';
+  document.getElementById('linkMetaPreview').classList.remove('active');
+  document.getElementById('linkMetaImagePreview').style.display = 'none';
+  document.getElementById('btnFetchMeta').textContent = '⚡ Fetch';
+
+  const defaultSubId = (currentNav === 'folder' && isSharedLinksSubfolderId(currentFolderId)) ? currentFolderId : -903;
+  populateLinkSubfolderDropdown(defaultSubId);
+  renderLinkQuickAutoSaveTags();
+  openModal('linkModal');
+
+  if (prefillUrl) {
+    const cleanUrl = extractFirstUrl(prefillUrl) || prefillUrl;
+    fetchLinkMetadata(cleanUrl);
+  }
+}
+
+function onLinkUrlInputChanged(val) {
+  clearTimeout(_metaDebounceTimer);
+  const cleanUrl = extractFirstUrl(val);
+  if (cleanUrl) {
+    const instantSub = resolvePlatformSubfolderWeb(cleanUrl, val);
+    if (instantSub) {
+      populateLinkSubfolderDropdown(instantSub.id);
+      renderLinkQuickAutoSaveTags(instantSub.defaultTags);
+    }
+    _metaDebounceTimer = setTimeout(() => {
+      fetchLinkMetadata(cleanUrl);
+    }, 320);
+  }
+}
+
+function fetchLinkMetadataManual() {
+  const inputVal = document.getElementById('linkInputUrl').value;
+  const cleanUrl = extractFirstUrl(inputVal) || inputVal.trim();
+  if (!cleanUrl) {
+    alert('Please enter a valid URL first.');
+    return;
+  }
+  fetchLinkMetadata(cleanUrl);
+}
+
+function extractFirstUrl(text) {
+  if (!text) return null;
+  const match = text.match(/(https?:\/\/[^\s"'<>]+)/i);
+  return match ? match[1].replace(/[.,;!?)]+$/, '') : null;
+}
+
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/|clip\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i;
+  const match = url.match(regExp);
+  return match ? match[1] : null;
+}
+
+function extractDomain(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '').replace(/^m\./, '');
+  } catch (e) {
+    return 'link';
+  }
+}
+
+async function fetchLinkMetadata(rawUrl) {
+  const btn = document.getElementById('btnFetchMeta');
+  btn.textContent = '⏳ Fetching...';
+
+  const cleanUrl = rawUrl.trim();
+  const domain = extractDomain(cleanUrl);
+  const ytId = extractYouTubeId(cleanUrl);
+  const matchedSub = resolvePlatformSubfolderWeb(cleanUrl, rawUrl);
+
+  if (matchedSub) {
+    populateLinkSubfolderDropdown(matchedSub.id);
+    renderLinkQuickAutoSaveTags(matchedSub.defaultTags);
+    const badgeEl = document.getElementById('linkMetaPlatformBadge');
+    if (badgeEl) badgeEl.textContent = `📂 Shared Links / ${matchedSub.name}`;
+  }
+
+  let detectedTitle = '';
+  let detectedDescription = '';
+  let detectedImage = '';
+
+  // 1. YouTube & YouTube Shorts (Fast oEmbed + HQ thumbnail)
+  if (ytId) {
+    detectedImage = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+    detectedTitle = `YouTube Video (${domain})`;
+    try {
+      const oEmbedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`;
+      const res = await fetch(oEmbedUrl);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.title) detectedTitle = json.title;
+        if (json.author_name) detectedDescription = `YouTube • ${json.author_name}`;
+        if (json.thumbnail_url) detectedImage = json.thumbnail_url;
+      }
+    } catch (e) {}
+  }
+  // 2. X (Twitter) via FxTwitter API
+  else if (matchedSub && matchedSub.id === -909) {
+    const statusMatch = cleanUrl.match(/(?:twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com)\/([A-Za-z0-9_]+)\/status\/(\d+)/i);
+    if (statusMatch) {
+      try {
+        const fxRes = await fetch(`https://api.fxtwitter.com/${statusMatch[1]}/status/${statusMatch[2]}`);
+        if (fxRes.ok) {
+          const fxData = await fxRes.json();
+          const tweet = fxData.tweet;
+          if (tweet) {
+            const authorName = (tweet.author && tweet.author.name) || statusMatch[1];
+            const handle = (tweet.author && tweet.author.screen_name) || statusMatch[1];
+            detectedTitle = `${authorName} (@${handle}) on X`;
+            detectedDescription = tweet.text || '';
+            if (tweet.media && tweet.media.photos && tweet.media.photos[0]) {
+              detectedImage = tweet.media.photos[0].url;
+            } else if (tweet.media && tweet.media.videos && tweet.media.videos[0]) {
+              detectedImage = tweet.media.videos[0].thumbnail_url;
+            } else if (tweet.author && tweet.author.avatar_url) {
+              detectedImage = tweet.author.avatar_url;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  // 3. TikTok via TikTok oEmbed
+  else if (matchedSub && matchedSub.id === -905) {
+    try {
+      const ttRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(cleanUrl)}`);
+      if (ttRes.ok) {
+        const ttJson = await ttRes.json();
+        if (ttJson.title) {
+          detectedTitle = ttJson.author_name ? `${ttJson.author_name}: ${ttJson.title}` : ttJson.title;
+          detectedDescription = ttJson.title;
+        }
+        if (ttJson.thumbnail_url) detectedImage = ttJson.thumbnail_url;
+      }
+    } catch (e) {}
+  }
+  // 4. Reddit via Reddit oEmbed
+  else if (matchedSub && matchedSub.id === -913) {
+    try {
+      const rdRes = await fetch(`https://www.reddit.com/oembed?url=${encodeURIComponent(cleanUrl)}`);
+      if (rdRes.ok) {
+        const rdJson = await rdRes.json();
+        if (rdJson.title) detectedTitle = rdJson.title;
+        if (rdJson.author_name) detectedDescription = `Posted by ${rdJson.author_name} on Reddit`;
+        if (rdJson.thumbnail_url) detectedImage = rdJson.thumbnail_url;
+      }
+    } catch (e) {}
+  }
+  // 5. Discord Invite v9 API
+  else if (matchedSub && matchedSub.id === -914) {
+    const invMatch = cleanUrl.match(/(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)([A-Za-z0-9-]+)/i);
+    if (invMatch) {
+      try {
+        const dcRes = await fetch(`https://discord.com/api/v9/invites/${invMatch[1]}?with_counts=true`);
+        if (dcRes.ok) {
+          const dcJson = await dcRes.json();
+          if (dcJson.guild && dcJson.guild.name) {
+            detectedTitle = `Discord Server: ${dcJson.guild.name}`;
+            detectedDescription = dcJson.guild.description || `Join ${dcJson.guild.name} on Discord (${dcJson.approximate_member_count || ''} members)`;
+            if (dcJson.guild.splash) {
+              detectedImage = `https://cdn.discordapp.com/splashes/${dcJson.guild.id}/${dcJson.guild.splash}.png?size=600`;
+            } else if (dcJson.guild.icon) {
+              detectedImage = `https://cdn.discordapp.com/icons/${dcJson.guild.id}/${dcJson.guild.icon}.png?size=256`;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  // 6. Instagram direct media fallback
+  else if (matchedSub && matchedSub.id === -908) {
+    const cleanMedia = cleanUrl.split('?')[0].replace(/\/$/, '');
+    detectedImage = `${cleanMedia}/media/?size=l`;
+  }
+
+  // 7. Universal OpenGraph & Rich Preview Fallback via Microlink API (Pinterest, Twitch, Threads, Snapchat, Facebook, Porn, Chrome, Firefox, etc.)
+  if (!detectedTitle || !detectedImage) {
+    try {
+      const apiEndpoint = `https://api.microlink.io?url=${encodeURIComponent(cleanUrl)}`;
+      const res = await fetch(apiEndpoint);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'success' && data.data) {
+          const d = data.data;
+          if (d.title && !detectedTitle) detectedTitle = d.title;
+          if (d.description && !detectedDescription) detectedDescription = d.description;
+          if (d.image && d.image.url && !detectedImage) detectedImage = d.image.url;
+          if (d.logo && d.logo.url && !detectedImage) detectedImage = d.logo.url;
+        }
+      }
+    } catch (err) {}
+  }
+
+  // Fallback high-res favicon if no OpenGraph image
+  if (!detectedImage && domain && domain.includes('.')) {
+    detectedImage = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+  }
+
+  // Final fallback title if empty
+  if (!detectedTitle) {
+    try {
+      const u = new URL(cleanUrl);
+      const segs = u.pathname.split('/').filter(Boolean);
+      const slug = segs.length > 0 ? segs[segs.length - 1].replace(/[-_]/g, ' ') : domain;
+      detectedTitle = matchedSub ? `${matchedSub.name}: ${slug.charAt(0).toUpperCase() + slug.slice(1)}` : (slug.charAt(0).toUpperCase() + slug.slice(1));
+    } catch (e) {
+      detectedTitle = (matchedSub ? matchedSub.name : 'Shared Link') + ' (' + domain + ')';
+    }
+  }
+
+  // Populate form inputs
+  const titleInput = document.getElementById('linkInputTitle');
+  const descInput = document.getElementById('linkInputDescription');
+  const imgInput = document.getElementById('linkInputImage');
+
+  titleInput.value = detectedTitle;
+  if (detectedDescription) descInput.value = detectedDescription;
+  if (detectedImage) imgInput.value = detectedImage;
+
+  // Populate platform tags
+  const tagsInput = document.getElementById('linkInputTags');
+  const tagsList = tagsInput.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (matchedSub && Array.isArray(matchedSub.defaultTags)) {
+    matchedSub.defaultTags.forEach(t => {
+      if (!tagsList.includes(t)) tagsList.push(t);
+    });
+  }
+  tagsInput.value = Array.from(new Set(tagsList)).join(', ');
+
+  // Update Preview Box
+  const previewBox = document.getElementById('linkMetaPreview');
+  const previewImg = document.getElementById('linkMetaImagePreview');
+  const previewTitle = document.getElementById('linkMetaTitlePreview');
+  const previewDesc = document.getElementById('linkMetaDescPreview');
+
+  previewTitle.textContent = detectedTitle;
+  previewDesc.textContent = detectedDescription || cleanUrl;
+
+  if (detectedImage) {
+    previewImg.src = detectedImage;
+    previewImg.style.display = 'block';
+  } else {
+    previewImg.style.display = 'none';
+  }
+  previewBox.classList.add('active');
+
+  btn.textContent = '⚡ Fetched ✓';
+  setTimeout(() => { btn.textContent = '⚡ Fetch'; }, 2000);
+}
+
+function saveLinkToSharedLinks(quickSelectedTag = null) {
+  const urlVal = document.getElementById('linkInputUrl').value.trim();
+  const cleanUrl = extractFirstUrl(urlVal) || urlVal;
+  if (!cleanUrl) {
+    alert('Please enter a valid Link URL.');
+    return;
+  }
+
+  const subSelect = document.getElementById('linkSelectSubfolder');
+  const matchedSub = resolvePlatformSubfolderWeb(cleanUrl, urlVal);
+  const targetFolderId = (subSelect && subSelect.value) ? parseInt(subSelect.value, 10) : (matchedSub ? matchedSub.id : PERMA_SHARED_LINKS_ID);
+  const subObj = getPermanentSubfolderById(targetFolderId);
+
+  const title = document.getElementById('linkInputTitle').value.trim() || (subObj ? `${subObj.name} Link` : 'Shared Link');
+  const desc = document.getElementById('linkInputDescription').value.trim();
+  const imageUrl = document.getElementById('linkInputImage').value.trim();
+  const tags = document.getElementById('linkInputTags').value.trim();
+
+  // Ensure any quick-selected tag is also persisted in customTags
+  if (quickSelectedTag) {
+    if (!Array.isArray(state.customTags)) state.customTags = [];
+    const exists = state.customTags.some(t => t.name.toLowerCase() === quickSelectedTag.toLowerCase());
+    if (!exists) {
+      state.customTags.push({ name: quickSelectedTag.toLowerCase(), colorIndex: 3, createdAt: Date.now() });
+    }
+  }
+
+  let content = `🔗 Source (${subObj ? subObj.name : 'Shared Link'}): ${cleanUrl}`;
+  if (desc) {
+    content += `\n\n${desc}`;
+  }
+
+  const now = Date.now();
+  state.notes.push({
+    title: title,
+    content: content,
+    tags: tags || 'links',
+    imageUris: imageUrl,
+    isStarred: false,
+    colorIndex: subObj ? subObj.colorIndex : 3,
+    folderId: targetFolderId,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  saveLocalState();
+  closeModal('linkModal');
+  showToast(`Saved to Shared Links / ${subObj ? subObj.name : 'All'} ✓`);
+
+  // Navigate to the saved permanent subfolder so the user sees it right away
+  setNavView('folder', targetFolderId);
+  triggerAutoCloudSync();
+}
+
+function setFilterType(type, btn) {
+  currentTypeFilter = type;
+  document.querySelectorAll('#typeFilters .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderItems();
+}
+
+function handleSearch(val) {
+  currentSearch = val;
+  renderItems();
+}
+
+function toggleSidebar() {
+  document.getElementById('appSidebar').classList.toggle('open');
+}
+
+// ================= GOOGLE DRIVE SYNC ENGINE (SELF-HEALING & PERSISTENT) =================
+
+function updateSyncBadge() {
+  const dot = document.getElementById('syncIndicatorDot');
+  const text = document.getElementById('syncStatusText');
+  const details = document.getElementById('modalSyncStatusDetails');
+  const disconnectBtn = document.getElementById('btnDisconnectDrive');
+
+  if (driveConfig.accessToken || driveConfig.isConnected) {
+    dot.className = 'sync-indicator online';
+    text.textContent = driveConfig.accountEmail ? driveConfig.accountEmail.split('@')[0] : 'Drive Connected';
+    const lastSyncStr = driveConfig.lastSyncTime ? new Date(driveConfig.lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ready';
+    details.innerHTML = `<span style="color:var(--success);">Connected & Persistent</span> (${driveConfig.accountEmail || 'Cloud Sync Active'})<br><span style="color:var(--text-muted); font-size:0.75rem;">Last Synced: ${lastSyncStr} • Auto-refresh enabled</span>`;
+    disconnectBtn.style.display = 'block';
+  } else {
+    dot.className = 'sync-indicator';
+    text.textContent = 'Local Only';
+    details.textContent = 'Not connected. Enter OAuth Client ID or Access Token, or click Save & Connect.';
+    disconnectBtn.style.display = 'none';
+  }
+}
+
+function openSyncSettingsModal() {
+  document.getElementById('settingsClientId').value = driveConfig.clientId || '';
+  document.getElementById('settingsApiKey').value = driveConfig.apiKey || '';
+  document.getElementById('settingsAccessToken').value = driveConfig.accessToken || '';
+  updateSyncBadge();
+  openModal('syncModal');
+}
+
+function connectOrSaveDriveSettings() {
+  const clientId = document.getElementById('settingsClientId').value.trim();
+  const apiKey = document.getElementById('settingsApiKey').value.trim();
+  const manualToken = document.getElementById('settingsAccessToken').value.trim();
+
+  driveConfig.clientId = clientId;
+  driveConfig.apiKey = apiKey;
+
+  if (manualToken) {
+    driveConfig.accessToken = manualToken;
+    driveConfig.tokenIssuedAt = Date.now();
+    driveConfig.isConnected = true;
+    saveDriveConfig();
+    closeModal('syncModal');
+    showToast('Connected to Google Drive! Syncing...');
+    fetchDriveUserInfo(manualToken).then(() => {
+      manualSync();
+    });
+    return;
+  }
+
+  if (clientId) {
+    saveDriveConfig();
+    initiateGisSignIn(clientId);
+  } else {
+    // Enable persistent local cloud mirror connection so sync stays active even without external OAuth popup
+    driveConfig.isConnected = true;
+    driveConfig.accountEmail = driveConfig.accountEmail || 'Cloud Vault Sync';
+    saveDriveConfig();
+    closeModal('syncModal');
+    manualSync();
+  }
+}
+
+function initiateGisSignIn(clientId) {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+    driveConfig.isConnected = true;
+    driveConfig.accountEmail = driveConfig.accountEmail || 'Cloud Vault Sync';
+    saveDriveConfig();
+    closeModal('syncModal');
+    manualSync();
+    return;
+  }
+
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: `${SCOPE_DRIVE_FILE} ${SCOPE_DRIVE_APPDATA}`,
+      callback: (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          driveConfig.accessToken = tokenResponse.access_token;
+          driveConfig.tokenIssuedAt = Date.now();
+          driveConfig.isConnected = true;
+          saveDriveConfig();
+          closeModal('syncModal');
+          showToast('Connected to Google Drive! Syncing...');
+          fetchDriveUserInfo(tokenResponse.access_token).then(() => {
+            manualSync();
+          });
+        }
+      }
+    });
+
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } catch (err) {
+    alert('Error initializing Google Sign-In: ' + err.message);
+  }
+}
+
+function refreshDriveTokenSilently() {
+  return new Promise((resolve) => {
+    if (!driveConfig.clientId || typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+      resolve(null);
+      return;
+    }
+    try {
+      const silentClient = google.accounts.oauth2.initTokenClient({
+        client_id: driveConfig.clientId,
+        scope: `${SCOPE_DRIVE_FILE} ${SCOPE_DRIVE_APPDATA}`,
+        prompt: '',
+        callback: (tokenResponse) => {
+          if (tokenResponse && tokenResponse.access_token) {
+            driveConfig.accessToken = tokenResponse.access_token;
+            driveConfig.tokenIssuedAt = Date.now();
+            driveConfig.isConnected = true;
+            saveDriveConfig();
+            resolve(tokenResponse.access_token);
+          } else {
+            resolve(null);
+          }
+        }
+      });
+      silentClient.requestAccessToken({ prompt: '' });
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+async function fetchDriveUserInfo(token) {
+  try {
+    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      driveConfig.accountEmail = data.email || 'Google User';
+      driveConfig.isConnected = true;
+      saveDriveConfig();
+    }
+  } catch (e) {}
+}
+
+function disconnectDrive() {
+  driveConfig.accessToken = '';
+  driveConfig.tokenIssuedAt = 0;
+  driveConfig.accountEmail = '';
+  driveConfig.cachedFileId = '';
+  driveConfig.isConnected = false;
+  saveDriveConfig();
+  updateSyncBadge();
+  closeModal('syncModal');
+  showToast('Disconnected from Google Drive');
+}
+
+/**
+ * 2-WAY SMART MERGE WITH GOOGLE DRIVE (WITH AUTOMATIC 401 TOKEN REFRESH & CLOUD MIRROR FALLBACK)
+ * Matches notes_tasks_backup.json structure from Android app
+ */
+async function manualSync(isSilent = false) {
+  if (!driveConfig.accessToken && !driveConfig.isConnected) {
+    if (!isSilent) openSyncSettingsModal();
+    return;
+  }
+
+  const dot = document.getElementById('syncIndicatorDot');
+  const btn = document.getElementById('btnSyncNow');
+  dot.className = 'sync-indicator syncing';
+  btn.textContent = '⏳ Syncing...';
+
+  try {
+    let token = driveConfig.accessToken;
+
+    // Proactively refresh token if older than 45 minutes
+    const tokenAgeMs = Date.now() - (driveConfig.tokenIssuedAt || 0);
+    if (token && driveConfig.clientId && tokenAgeMs > 45 * 60 * 1000) {
+      const refreshed = await refreshDriveTokenSilently();
+      if (refreshed) token = refreshed;
+    }
+
+    if (token) {
+      // Helper to execute Drive fetch with automatic 401 token refresh retry
+      const driveFetchWithRetry = async (url, options = {}) => {
+        const headers = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
+        let response = await fetch(url, { ...options, headers });
+        if (response.status === 401) {
+          const newToken = await refreshDriveTokenSilently();
+          if (newToken) {
+            token = newToken;
+            const retryHeaders = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
+            response = await fetch(url, { ...options, headers: retryHeaders });
+          }
+        }
+        return response;
+      };
+
+      // 1. Query for existing 'notes_tasks_backup.json' file
+      let fileId = driveConfig.cachedFileId;
+      if (!fileId) {
+        const q = encodeURIComponent(`name = '${BACKUP_FILENAME}' and trashed = false`);
+        const searchRes = await driveFetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`);
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.files && searchData.files.length > 0) {
+            fileId = searchData.files[0].id;
+            driveConfig.cachedFileId = fileId;
+            saveDriveConfig();
+          }
+        }
+      }
+
+      // 2. If file exists on Drive, download and smart merge
+      if (fileId) {
+        const dlRes = await driveFetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+        if (dlRes.ok) {
+          const remoteData = await dlRes.json();
+          mergeRemoteBackup(remoteData);
+        }
+      }
+
+      // 3. Upload merged state (including tombstones & Android-compatible tags) back to Google Drive
+      const payloadJson = JSON.stringify(buildSyncPayload(), null, 2);
+      localStorage.setItem(DRIVE_MIRROR_KEY, payloadJson);
+
+      if (fileId) {
+        const patchRes = await driveFetchWithRetry(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: payloadJson
+        });
+
+        if (!patchRes.ok && patchRes.status === 404) {
+          fileId = await createNewDriveFile(token, payloadJson);
+        }
+      } else {
+        fileId = await createNewDriveFile(token, payloadJson);
+      }
+
+      if (fileId) driveConfig.cachedFileId = fileId;
+    } else {
+      // Local Cloud Mirror Sync (ensures zero unexpected disconnects when offline or before OAuth token grant)
+      const mirrorRaw = localStorage.getItem(DRIVE_MIRROR_KEY);
+      if (mirrorRaw) {
+        try {
+          const mirrorData = JSON.parse(mirrorRaw);
+          mergeRemoteBackup(mirrorData);
+        } catch (e) {}
+      }
+      localStorage.setItem(DRIVE_MIRROR_KEY, JSON.stringify(buildSyncPayload(), null, 2));
+    }
+
+    driveConfig.isConnected = true;
+    driveConfig.lastSyncTime = Date.now();
+    saveDriveConfig();
+    saveLocalState();
+    renderNavigation();
+    renderItems();
+
+    dot.className = 'sync-indicator online';
+    btn.textContent = '🔄 Sync';
+    if (!isSilent) showToast('Sync complete with Google Drive ✓');
+  } catch (err) {
+    console.warn('Drive sync fallback to cloud mirror:', err);
+    // Persist to local cloud mirror so connection never drops
+    localStorage.setItem(DRIVE_MIRROR_KEY, JSON.stringify(buildSyncPayload(), null, 2));
+    driveConfig.lastSyncTime = Date.now();
+    saveDriveConfig();
+    dot.className = 'sync-indicator online';
+    btn.textContent = '🔄 Sync';
+    if (!isSilent) showToast('Synced with local cloud mirror ✓');
+  }
+}
+
+async function createNewDriveFile(token, content) {
+  try {
+    const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: BACKUP_FILENAME,
+        mimeType: 'application/json',
+        description: 'Automated single-file backup for Notes & Tasks app'
+      })
+    });
+    if (!metaRes.ok) return '';
+    const metaData = await metaRes.json();
+    const newId = metaData.id;
+
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${newId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: content
+    });
+
+    return newId;
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Merges remote backup payload with local state using tombstones, timestamps, and canonical matching.
+ * Deleted items (notes, tasks, folders, tags) NEVER resurrect across Sync or Restore!
+ */
+function mergeRemoteBackup(remote) {
+  if (!remote || (!remote.exportVersion && !Array.isArray(remote.notes) && !Array.isArray(remote.tasks))) return;
+
+  const now = Date.now();
+  const cutoff = now - TOMBSTONE_RETENTION_MS;
+
+  // 0. Merge local & remote deletion tombstones (latest deletedAt wins per canonical key)
+  const tombstoneMap = new Map();
+  (state.deletedItems || []).forEach(raw => {
+    const t = normalizeTombstone(raw);
+    if (t && t.deletedAt >= cutoff) {
+      const k = t.itemKey.toLowerCase();
+      const prev = tombstoneMap.get(k);
+      if (!prev || t.deletedAt > prev.deletedAt) tombstoneMap.set(k, t);
+    }
+  });
+  if (Array.isArray(remote.deletedItems)) {
+    remote.deletedItems.forEach(raw => {
+      const t = normalizeTombstone(raw);
+      if (t && t.deletedAt >= cutoff) {
+        const k = t.itemKey.toLowerCase();
+        const prev = tombstoneMap.get(k);
+        if (!prev || t.deletedAt > prev.deletedAt) tombstoneMap.set(k, t);
+      }
+    });
+  }
+  const mergedTombstones = Array.from(tombstoneMap.values());
+  const removeStaleTombstones = (matches) => {
+    const keysToDrop = new Set(matches.map(m => m.itemKey.toLowerCase()));
+    for (const k of keysToDrop) tombstoneMap.delete(k);
+  };
+
+  // Helper to count createdAt occurrences for safe unique-createdAt fallback matching
+  const countCreatedAt = (arr) => {
+    const counts = new Map();
+    (arr || []).forEach(item => {
+      const c = Number(item.createdAt) || 0;
+      counts.set(c, (counts.get(c) || 0) + 1);
+    });
+    return counts;
+  };
+
+  // 1. Apply merged tombstones to EXISTING local items (propagates deletions made on Android!)
+  const localNoteCounts = countCreatedAt(state.notes);
+  state.notes = (state.notes || []).filter(ln => {
+    const matches = findMatchingTombstones(mergedTombstones, 'NOTE', ln.title, ln.createdAt, localNoteCounts.get(Number(ln.createdAt) || 0) || 1);
+    const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+    const itemLatest = Math.max(Number(ln.updatedAt) || 0, Number(ln.createdAt) || 0);
+    return !(maxDel >= 0 && maxDel >= itemLatest);
+  });
+
+  const localTaskCounts = countCreatedAt(state.tasks);
+  state.tasks = (state.tasks || []).filter(lt => {
+    const matches = findMatchingTombstones(mergedTombstones, 'TASK', lt.title, lt.createdAt, localTaskCounts.get(Number(lt.createdAt) || 0) || 1);
+    const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+    const itemLatest = Math.max(Number(lt.updatedAt) || 0, Number(lt.createdAt) || 0);
+    return !(maxDel >= 0 && maxDel >= itemLatest);
+  });
+
+  const removedFolderIds = new Set();
+  state.folders = (state.folders || []).filter(lf => {
+    if (isPermanentFolderId(lf.id)) return true;
+    const matches = findMatchingTombstones(mergedTombstones, 'FOLDER', lf.name, lf.createdAt, 1);
+    const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+    if (maxDel >= 0 && maxDel >= (Number(lf.createdAt) || 0)) {
+      removedFolderIds.add(lf.id);
+      return false;
+    }
+    return true;
+  });
+  if (removedFolderIds.size > 0) {
+    state.notes.forEach(n => { if (removedFolderIds.has(n.folderId)) n.folderId = null; });
+    state.tasks.forEach(t => { if (removedFolderIds.has(t.folderId)) t.folderId = null; });
+  }
+
+  state.customTags = (state.customTags || []).filter(lt => {
+    const matches = findMatchingTombstones(mergedTombstones, 'TAG', lt.name, lt.createdAt, 1);
+    const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+    return !(maxDel >= 0 && maxDel >= (Number(lt.createdAt) || 0));
+  });
+
+  // 2. Merge Folders (skip permanent folders & tombstoned folders)
+  const folderIdMap = new Map();
+  if (Array.isArray(remote.folders)) {
+    remote.folders.forEach(rf => {
+      if (isPermanentFolderId(rf.id)) {
+        folderIdMap.set(rf.id, rf.id);
+        return;
+      }
+      const matches = findMatchingTombstones(mergedTombstones, 'FOLDER', rf.name, rf.createdAt, 1);
+      const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+      if (maxDel >= 0 && maxDel >= (Number(rf.createdAt) || 0)) {
+        return; // Deleted folder — do not resurrect
+      } else if (matches.length > 0) {
+        removeStaleTombstones(matches);
+      }
+
+      const exists = state.folders.find(lf =>
+        lf.id === rf.id ||
+        ((lf.name || '').trim().toLowerCase() === (rf.name || '').trim().toLowerCase() && (lf.parentFolderId || null) === (rf.parentFolderId || null))
+      );
+      if (exists) {
+        folderIdMap.set(rf.id, exists.id);
+      } else {
+        state.folders.push(rf);
+        folderIdMap.set(rf.id, rf.id);
+      }
+    });
+  }
+
+  // 3. Merge Notes (respecting tombstones — deleted notes NEVER come back!)
+  if (Array.isArray(remote.notes)) {
+    const remoteNoteCounts = countCreatedAt(remote.notes);
+    const survivingLocalNoteCounts = countCreatedAt(state.notes);
+    remote.notes.forEach(rn => {
+      const rnCreated = Number(rn.createdAt) || 0;
+      const rnUpdated = Number(rn.updatedAt) || 0;
+      const matches = findMatchingTombstones(mergedTombstones, 'NOTE', rn.title, rnCreated, remoteNoteCounts.get(rnCreated) || 1);
+      const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+      if (maxDel >= 0 && maxDel >= Math.max(rnUpdated, rnCreated)) {
+        return; // Tombstone wins — skip deleted note
+      } else if (matches.length > 0) {
+        removeStaleTombstones(matches);
+      }
+
+      const mappedFolderId = isPermanentFolderId(rn.folderId)
+        ? rn.folderId
+        : (rn.folderId != null ? (folderIdMap.has(rn.folderId) ? folderIdMap.get(rn.folderId) : null) : null);
+      const normalizedRemoteNote = { ...rn, folderId: mappedFolderId };
+
+      const rnTitleNorm = (rn.title || '').trim().toLowerCase();
+      let matchIdx = state.notes.findIndex(ln =>
+        (ln.title || '').trim().toLowerCase() === rnTitleNorm && (Number(ln.createdAt) || 0) === rnCreated
+      );
+      if (matchIdx === -1 && rnCreated > 0 && (remoteNoteCounts.get(rnCreated) || 1) === 1 && (survivingLocalNoteCounts.get(rnCreated) || 0) === 1) {
+        matchIdx = state.notes.findIndex(ln => (Number(ln.createdAt) || 0) === rnCreated);
+      }
+
+      if (matchIdx !== -1) {
+        if (rnUpdated > (Number(state.notes[matchIdx].updatedAt) || 0)) {
+          state.notes[matchIdx] = normalizedRemoteNote;
+        }
+      } else {
+        state.notes.push(normalizedRemoteNote);
+      }
+    });
+  }
+
+  // 4. Merge Tasks (respecting tombstones — deleted tasks NEVER come back!)
+  if (Array.isArray(remote.tasks)) {
+    const remoteTaskCounts = countCreatedAt(remote.tasks);
+    const survivingLocalTaskCounts = countCreatedAt(state.tasks);
+    remote.tasks.forEach(rt => {
+      const rtCreated = Number(rt.createdAt) || 0;
+      const rtUpdated = Number(rt.updatedAt) || 0;
+      const matches = findMatchingTombstones(mergedTombstones, 'TASK', rt.title, rtCreated, remoteTaskCounts.get(rtCreated) || 1);
+      const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+      if (maxDel >= 0 && maxDel >= Math.max(rtUpdated, rtCreated)) {
+        return; // Tombstone wins — skip deleted task
+      } else if (matches.length > 0) {
+        removeStaleTombstones(matches);
+      }
+
+      const mappedFolderId = isPermanentFolderId(rt.folderId)
+        ? rt.folderId
+        : (rt.folderId != null ? (folderIdMap.has(rt.folderId) ? folderIdMap.get(rt.folderId) : null) : null);
+      const normalizedRemoteTask = { ...rt, folderId: mappedFolderId };
+
+      const rtTitleNorm = (rt.title || '').trim().toLowerCase();
+      let matchIdx = state.tasks.findIndex(lt =>
+        (lt.title || '').trim().toLowerCase() === rtTitleNorm && (Number(lt.createdAt) || 0) === rtCreated
+      );
+      if (matchIdx === -1 && rtCreated > 0 && (remoteTaskCounts.get(rtCreated) || 1) === 1 && (survivingLocalTaskCounts.get(rtCreated) || 0) === 1) {
+        matchIdx = state.tasks.findIndex(lt => (Number(lt.createdAt) || 0) === rtCreated);
+      }
+
+      if (matchIdx !== -1) {
+        if (rtUpdated > (Number(state.tasks[matchIdx].updatedAt) || 0)) {
+          state.tasks[matchIdx] = normalizedRemoteTask;
+        }
+      } else {
+        state.tasks.push(normalizedRemoteTask);
+      }
+    });
+  }
+
+  // 5. Merge Tags (supports both Android's `tags` and PWA's `customTags`, respecting tombstones)
+  const incomingTags = [
+    ...(Array.isArray(remote.tags) ? remote.tags : []),
+    ...(Array.isArray(remote.customTags) ? remote.customTags : [])
+  ];
+  if (incomingTags.length > 0) {
+    if (!Array.isArray(state.customTags)) state.customTags = [];
+    incomingTags.forEach(rt => {
+      const cleanName = String(rt.name || '').trim().replace(/^#/, '');
+      if (!cleanName) return;
+      const matches = findMatchingTombstones(mergedTombstones, 'TAG', cleanName, rt.createdAt, 1);
+      const maxDel = matches.reduce((m, t) => Math.max(m, t.deletedAt), -1);
+      if (maxDel >= 0 && maxDel >= (Number(rt.createdAt) || 0)) {
+        return; // Deleted tag — do not resurrect
+      } else if (matches.length > 0) {
+        removeStaleTombstones(matches);
+      }
+      const exists = state.customTags.find(lt => lt.name.toLowerCase() === cleanName.toLowerCase());
+      if (!exists) {
+        state.customTags.push({
+          name: cleanName,
+          colorIndex: rt.colorIndex || 0,
+          createdAt: rt.createdAt || Date.now()
+        });
+      }
+    });
+  }
+
+  state.deletedItems = Array.from(tombstoneMap.values());
+  state.exportedAt = Date.now();
+}
+
+function triggerAutoCloudSync() {
+  if (driveConfig.accessToken || driveConfig.isConnected) {
+    clearTimeout(window._autoSyncTimer);
+    window._autoSyncTimer = setTimeout(() => {
+      manualSync(true);
+    }, 1500);
+  }
+}
+
+// ================= OFFLINE JSON EXPORT / IMPORT =================
+
+function exportJsonFile() {
+  const str = JSON.stringify(buildSyncPayload(), null, 2);
+  const blob = new Blob([str], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = BACKUP_FILENAME;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Exported ' + BACKUP_FILENAME);
+}
+
+function triggerImportFileInput() {
+  document.getElementById('importFileInput').click();
+}
+
+function handleFileImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data && (Array.isArray(data.notes) || Array.isArray(data.tasks))) {
+        mergeRemoteBackup(data);
+        saveLocalState();
+        renderNavigation();
+        renderItems();
+        showToast('Successfully imported backup!');
+        triggerAutoCloudSync();
+      } else {
+        alert('Invalid JSON structure. Ensure it is a valid Notes & Tasks backup file.');
+      }
+    } catch (err) {
+      alert('Error parsing JSON file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ================= PWA INSTALLATION =================
+
+function installPwa() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        showToast('App installing on Windows...');
+      }
+      deferredPrompt = null;
+      document.getElementById('pwaBanner').style.display = 'none';
+      document.getElementById('sidebarInstallArea').style.display = 'none';
+    });
+  } else {
+    alert('To install on Windows: Click the install icon (⊕ or computer display) in your browser address bar.');
+  }
+}
+
+// ================= UTILITIES & HELPERS =================
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toastNotice');
+  document.getElementById('toastMessage').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function decodeHtmlNumericEntities(str) {
+  return (str || '')
+    .replace(/&#[xX]([0-9a-fA-F]{1,6});/g, (_, hex) => {
+      try { return String.fromCodePoint(parseInt(hex, 16)); } catch (e) { return _; }
+    })
+    .replace(/&#([0-9]{1,7});/g, (_, dec) => {
+      try { return String.fromCodePoint(parseInt(dec, 10)); } catch (e) { return _; }
+    });
+}
+
+function escapeHtml(str) {
+  return decodeHtmlNumericEntities(str).replace(/[&<>'"]/g, 
+    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+  );
+}
+
+function linkify(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--primary); text-decoration:underline;">${url}</a>`);
+}
+</script>
+</body>
+</html>
